@@ -98,17 +98,24 @@ export class MentorshipService {
       userReqs = allReqs.filter(r => String(r.student_id) === String(user.id));
     } else if (user.role === 'ALUMNI') {
       userReqs = allReqs.filter(r => String(r.mentor_id) === String(user.id));
+    } else if (user.role === 'ADMIN') {
+      userReqs = allReqs;
     }
 
     return await Promise.all(userReqs.map(async (r) => {
       const student = await mentorshipRepository.findUserById(r.student_id);
+      const studentProfile = await mentorshipRepository.getStudentProfile(r.student_id);
       const mentor = await mentorshipRepository.findUserById(r.mentor_id);
+      const mentorProfile = await mentorshipRepository.getAlumniProfile(r.mentor_id);
       const domain = await mentorshipRepository.findDomainById(r.domain_id);
       return {
         ...r,
         student_name: student?.name,
         student_email: student?.email,
+        student_profile: studentProfile,
         mentor_name: mentor?.name,
+        mentor_email: mentor?.email,
+        mentor_profile: mentorProfile,
         domain_name: domain?.name
       };
     }));
@@ -122,6 +129,8 @@ export class MentorshipService {
       userActive = allActive.filter(a => String(a.student_id) === String(user.id));
     } else if (user.role === 'ALUMNI') {
       userActive = allActive.filter(a => String(a.mentor_id) === String(user.id));
+    } else if (user.role === 'ADMIN') {
+      userActive = allActive;
     }
 
     return await Promise.all(userActive.map(async (a) => {
@@ -207,6 +216,27 @@ export class MentorshipService {
         student_email: student?.email,
         mentor_name: mentor?.name,
         mentor_email: mentor?.email,
+        domain_name: domain?.name
+      };
+    }));
+  }
+
+  async getAllMentorshipRequestsAdmin() {
+    const allReqs = await mentorshipRepository.findAllRequests();
+    return await Promise.all(allReqs.map(async (r) => {
+      const student = await mentorshipRepository.findUserById(r.student_id);
+      const studentProfile = await mentorshipRepository.getStudentProfile(r.student_id);
+      const mentor = await mentorshipRepository.findUserById(r.mentor_id);
+      const mentorProfile = await mentorshipRepository.getAlumniProfile(r.mentor_id);
+      const domain = await mentorshipRepository.findDomainById(r.domain_id);
+      return {
+        ...r,
+        student_name: student?.name,
+        student_email: student?.email,
+        student_profile: studentProfile,
+        mentor_name: mentor?.name,
+        mentor_email: mentor?.email,
+        mentor_profile: mentorProfile,
         domain_name: domain?.name
       };
     }));

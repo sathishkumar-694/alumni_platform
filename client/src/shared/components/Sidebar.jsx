@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
-  GraduationCap,
   LayoutDashboard,
   Compass,
   BookOpen,
@@ -11,28 +10,22 @@ import {
   Sparkles,
   Users,
   MessageSquare,
-  Calendar,
   ChevronDown,
   ChevronRight,
-  Search,
   BookMarked,
-  FolderCheck,
-  FileCheck,
   Briefcase,
-  UserCheck,
-  Clock,
-  Settings
+  Award,
+  Video
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab }) => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [menuSearch, setMenuSearch] = useState('');
 
   // Accordion toggle states per section
   const [openSections, setOpenSections] = useState({
     main: true,
     mentorship: true,
-    domains: true,
     updates: true,
     admin: true
   });
@@ -53,16 +46,59 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   const isAlumni = user?.role === 'ALUMNI';
   const isAdmin = user?.role === 'ADMIN';
 
+  // Reusable Nav Item Renderer
+  const renderNavItem = (tabId, label, IconComponent) => {
+    if (menuSearch.trim() && !label.toLowerCase().includes(menuSearch.toLowerCase().trim())) {
+      return null;
+    }
+
+    const isActive = activeTab === tabId;
+
+    return (
+      <button
+        key={tabId}
+        onClick={() => handleNavClick(tabId)}
+        className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.65rem',
+          padding: '0.45rem 0.75rem',
+          borderRadius: '6px',
+          fontSize: '0.8125rem',
+          fontWeight: isActive ? 600 : 500,
+          border: isActive ? '1px solid var(--sidebar-active-border)' : '1px solid transparent',
+          cursor: 'pointer',
+          background: isActive ? 'var(--sidebar-active-bg)' : 'transparent',
+          color: isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)',
+          textAlign: 'left',
+          transition: 'all 0.15s ease'
+        }}
+      >
+        <IconComponent
+          size={14}
+          color={isActive ? 'var(--sidebar-active-text)' : 'var(--sidebar-text)'}
+          style={{ flexShrink: 0 }}
+        />
+        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {label}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <aside
+      className="sidebar-container"
       style={{
         width: '240px',
         minWidth: '240px',
-        background: '#ffffff',
-        borderRight: '1px solid #e2e8f0',
+        background: 'var(--sidebar-bg)',
+        borderRight: '1px solid var(--border-card)',
         display: 'flex',
         flexDirection: 'column',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         height: 'calc(100vh - 60px)',
         position: 'sticky',
         top: '60px',
@@ -72,10 +108,10 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
       <div style={{ overflowY: 'auto', flex: 1, padding: '1rem 0.75rem' }}>
         
         {/* Search Menu Input */}
-        <div style={{ marginBottom: '1.25rem', padding: '0 0.25rem' }}>
+        <div style={{ marginBottom: '1.25rem', padding: '0 0.15rem' }}>
           <input
             type="text"
-            className="form-input"
+            className="sidebar-search-input"
             placeholder="Search menu"
             value={menuSearch}
             onChange={(e) => setMenuSearch(e.target.value)}
@@ -85,15 +121,16 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               padding: '0.4rem 0.75rem',
               fontSize: '0.8rem',
               borderRadius: '6px',
-              border: '1px solid #cbd5e1',
-              background: '#ffffff',
-              color: '#334155'
+              border: '1px solid var(--border-card)',
+              background: 'var(--sidebar-search-bg)',
+              color: 'var(--text-main)',
+              outline: 'none'
             }}
           />
         </div>
 
         {/* ========================================================
-            SECTION 1: MAIN DASHBOARD (RBAC CUSTOMIZED)
+            SECTION 1: MAIN WORKSPACE
         ======================================================== */}
         <div style={{ marginBottom: '1.25rem' }}>
           <div
@@ -101,51 +138,37 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               padding: '0.35rem 0.5rem',
               cursor: 'pointer',
-              color: '#64748b',
-              fontSize: '0.8rem',
-              fontWeight: 700
+              color: 'var(--text-subtle)',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.02em'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <LayoutDashboard size={15} color="#64748b" />
+              <LayoutDashboard size={14} color="var(--text-subtle)" />
               <span>Main Workspace</span>
             </div>
-            {openSections.main ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {openSections.main ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
           </div>
 
           {openSections.main && (
             <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              <button
-                onClick={() => handleNavClick('dashboard')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
-                  fontWeight: 600,
-                  border: activeTab === 'dashboard' ? '1px solid #7dd3fc' : 'none',
-                  cursor: 'pointer',
-                  background: activeTab === 'dashboard' ? '#e0f2fe' : 'transparent',
-                  color: activeTab === 'dashboard' ? '#0284c7' : '#475569',
-                  textAlign: 'left'
-                }}
-              >
-                <span>
-                  {isStudent ? 'Student Dashboard' : isAlumni ? 'Mentor Dashboard' : isAdmin ? 'Admin Operations Center' : 'Dashboard Overview'}
-                </span>
-              </button>
+              {renderNavItem(
+                'dashboard',
+                isStudent ? 'Student Dashboard' : isAlumni ? 'Mentor Dashboard' : isAdmin ? 'Admin Operations Center' : 'Dashboard Overview',
+                LayoutDashboard
+              )}
+              {renderNavItem('explore', 'Technical Domain Directory', Compass)}
+              {user && renderNavItem('profile', 'My Profile & ID Credentials', User)}
             </div>
           )}
         </div>
 
         {/* ========================================================
-            SECTION 2: ROLE-BASED MENTORSHIP MANAGEMENT (RBAC STRICT)
+            SECTION 2: ROLE-BASED MENTORSHIP & AI TOOLS
         ======================================================== */}
         {user && (
           <div style={{ marginBottom: '1.25rem' }}>
@@ -154,195 +177,47 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 padding: '0.35rem 0.5rem',
                 cursor: 'pointer',
-                color: '#64748b',
-                fontSize: '0.8rem',
-                fontWeight: 700
+                color: 'var(--text-subtle)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Users size={15} color="#64748b" />
+                <Users size={14} color="var(--text-subtle)" />
                 <span>
                   {isStudent ? 'My Mentorship & Academics' : isAlumni ? 'My Mentee Management' : 'Mentorship Oversight'}
                 </span>
               </div>
-              {openSections.mentorship ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {openSections.mentorship ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
             </div>
 
             {openSections.mentorship && (
               <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                
-                {/* Active Mentorships / Mentees Tab */}
-                <button
-                  onClick={() => handleNavClick('active_mentorships')}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    border: activeTab === 'active_mentorships' ? '1px solid #7dd3fc' : 'none',
-                    cursor: 'pointer',
-                    background: activeTab === 'active_mentorships' ? '#e0f2fe' : 'transparent',
-                    color: activeTab === 'active_mentorships' ? '#0284c7' : '#475569',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>
-                    {isStudent ? 'My Alumni Mentors' : isAlumni ? 'Active Student Mentees' : 'All Active Mentorships'}
-                  </span>
-                </button>
-
-                {/* Mentorship Requests Tab */}
-                <button
-                  onClick={() => handleNavClick('requests')}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    border: activeTab === 'requests' ? '1px solid #7dd3fc' : 'none',
-                    cursor: 'pointer',
-                    background: activeTab === 'requests' ? '#e0f2fe' : 'transparent',
-                    color: activeTab === 'requests' ? '#0284c7' : '#475569',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>
-                    {isStudent ? 'My Sent Requests' : isAlumni ? 'Incoming Mentee Requests' : 'All Pending Requests'}
-                  </span>
-                </button>
-
-                {/* 1-on-1 Sessions Tab */}
-                <button
-                  onClick={() => handleNavClick('sessions')}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    border: activeTab === 'sessions' ? '1px solid #7dd3fc' : 'none',
-                    cursor: 'pointer',
-                    background: activeTab === 'sessions' ? '#e0f2fe' : 'transparent',
-                    color: activeTab === 'sessions' ? '#0284c7' : '#475569',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>1-on-1 Virtual Sessions</span>
-                </button>
-
-                {/* Alumni Job Referrals Tab */}
-                <button
-                  onClick={() => handleNavClick('referrals')}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    border: activeTab === 'referrals' ? '1px solid #7dd3fc' : 'none',
-                    cursor: 'pointer',
-                    background: activeTab === 'referrals' ? '#e0f2fe' : 'transparent',
-                    color: activeTab === 'referrals' ? '#0284c7' : '#475569',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>💼 Job Referrals</span>
-                </button>
+                {renderNavItem('resume_analyzer', 'AI Resume Analyzer', Sparkles)}
+                {renderNavItem('recommended_mentors', 'Recommended Mentors', Award)}
+                {renderNavItem(
+                  'active_mentorships',
+                  isStudent ? 'My Alumni Mentors' : isAlumni ? 'Active Student Mentees' : 'All Active Mentorships',
+                  Users
+                )}
+                {renderNavItem(
+                  'requests',
+                  isStudent ? 'My Sent Requests' : isAlumni ? 'Incoming Mentee Requests' : 'All Pending Requests',
+                  MessageSquare
+                )}
+                {renderNavItem('sessions', '1-on-1 Virtual Sessions', Video)}
+                {renderNavItem('referrals', 'Job Referrals', Briefcase)}
               </div>
             )}
           </div>
         )}
 
         {/* ========================================================
-            SECTION 3: MASTER ENTRIES & DOMAINS
-        ======================================================== */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <div
-            onClick={() => toggleSection('domains')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justify: 'space-between',
-              padding: '0.35rem 0.5rem',
-              cursor: 'pointer',
-              color: '#64748b',
-              fontSize: '0.8rem',
-              fontWeight: 700
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Compass size={15} color="#64748b" />
-              <span>Master Entries</span>
-            </div>
-            {openSections.domains ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </div>
-
-          {openSections.domains && (
-            <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              <button
-                onClick={() => handleNavClick('explore')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
-                  fontWeight: 600,
-                  border: activeTab === 'explore' ? '1px solid #7dd3fc' : 'none',
-                  cursor: 'pointer',
-                  background: activeTab === 'explore' ? '#e0f2fe' : 'transparent',
-                  color: activeTab === 'explore' ? '#0284c7' : '#475569',
-                  textAlign: 'left'
-                }}
-              >
-                <span>Technical Domains</span>
-              </button>
-
-              <button
-                onClick={() => handleNavClick('resources')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
-                  fontWeight: 600,
-                  border: activeTab === 'resources' ? '1px solid #7dd3fc' : 'none',
-                  cursor: 'pointer',
-                  background: activeTab === 'resources' ? '#e0f2fe' : 'transparent',
-                  color: activeTab === 'resources' ? '#0284c7' : '#475569',
-                  textAlign: 'left'
-                }}
-              >
-                <span>Study Resources</span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* ========================================================
-            SECTION 4: UPDATES & COMMUNITY
+            SECTION 3: UPDATES & RESOURCES
         ======================================================== */}
         <div style={{ marginBottom: '1.25rem' }}>
           <div
@@ -350,49 +225,32 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
             style={{
               display: 'flex',
               alignItems: 'center',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               padding: '0.35rem 0.5rem',
               cursor: 'pointer',
-              color: '#64748b',
-              fontSize: '0.8rem',
-              fontWeight: 700
+              color: 'var(--text-subtle)',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              letterSpacing: '0.02em'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Bell size={15} color="#64748b" />
-              <span>Project & Updates</span>
+              <BookOpen size={14} color="var(--text-subtle)" />
+              <span>Updates & Resources</span>
             </div>
-            {openSections.updates ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {openSections.updates ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
           </div>
 
           {openSections.updates && (
             <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              <button
-                onClick={() => handleNavClick('announcements')}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.55rem 0.75rem',
-                  borderRadius: '6px',
-                  fontSize: '0.825rem',
-                  fontWeight: 600,
-                  border: activeTab === 'announcements' ? '1px solid #7dd3fc' : 'none',
-                  cursor: 'pointer',
-                  background: activeTab === 'announcements' ? '#e0f2fe' : 'transparent',
-                  color: activeTab === 'announcements' ? '#0284c7' : '#475569',
-                  textAlign: 'left'
-                }}
-              >
-                <span>University Feed</span>
-              </button>
+              {renderNavItem('announcements', 'University Feed', Bell)}
+              {renderNavItem('resources', 'Study Resources', BookMarked)}
             </div>
           )}
         </div>
 
         {/* ========================================================
-            SECTION 5: ADMINISTRATION (ADMIN ROLE EXCLUSIVE)
+            SECTION 4: ADMIN MANAGEMENT (ADMIN ONLY)
         ======================================================== */}
         {isAdmin && (
           <div style={{ marginBottom: '1.25rem' }}>
@@ -401,43 +259,25 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 padding: '0.35rem 0.5rem',
                 cursor: 'pointer',
-                color: '#64748b',
-                fontSize: '0.8rem',
-                fontWeight: 700
+                color: 'var(--text-subtle)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em'
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldCheck size={15} color="#7c3aed" />
-                <span>Administration</span>
+                <ShieldCheck size={14} color="var(--accent-rose)" />
+                <span style={{ color: 'var(--accent-rose)' }}>Admin Controls</span>
               </div>
-              {openSections.admin ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {openSections.admin ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
             </div>
 
             {openSections.admin && (
               <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <button
-                  onClick={() => handleNavClick('admin_operations')}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.65rem',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    border: activeTab === 'admin_operations' ? '1px solid #7dd3fc' : 'none',
-                    cursor: 'pointer',
-                    background: activeTab === 'admin_operations' ? '#e0f2fe' : 'transparent',
-                    color: activeTab === 'admin_operations' ? '#0284c7' : '#475569',
-                    textAlign: 'left'
-                  }}
-                >
-                  <span>Operations Center & Verification</span>
-                </button>
+                {renderNavItem('admin_operations', 'Operations Center', ShieldCheck)}
               </div>
             )}
           </div>

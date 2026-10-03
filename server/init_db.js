@@ -9,13 +9,19 @@ async function initDB() {
 
   let connection;
   try {
-    connection = await mysql.createConnection({
+    const connConfig = {
       host: config.mysql.host,
       user: config.mysql.user,
       password: config.mysql.password,
       port: config.mysql.port,
       multipleStatements: true
-    });
+    };
+
+    if (config.mysql.ssl) {
+      connConfig.ssl = { rejectUnauthorized: false };
+    }
+
+    connection = await mysql.createConnection(connConfig);
 
     console.log(`Connected to MySQL at ${config.mysql.host}:${config.mysql.port} as user '${config.mysql.user}'`);
 

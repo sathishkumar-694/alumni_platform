@@ -9,9 +9,20 @@
   --border-strong: #cbd5e1;  /* Emphasized Border */
   --border-glass: #e2e8f0;   /* Light Glass Border */
 
-  --primary: #0284c7;
-  --primary-hover: #0369a1;
-  --primary-subtle: rgba(2, 132, 199, 0.08);
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #475569;
+  --sidebar-hover-bg: #f8fafc;
+  --sidebar-hover-text: #0f172a;
+  --sidebar-active-bg: #e0f2fe;
+  --sidebar-active-border: #7dd3fc;
+  --sidebar-active-text: #0284c7;
+  --sidebar-search-bg: #ffffff;
+
+  --header-bg: #ffffff;
+
+  --primary: #0091ff;
+  --primary-hover: #0077d6;
+  --primary-subtle: rgba(0, 145, 255, 0.08);
 
   --accent-purple: #7c3aed;
   --accent-emerald: #059669;
@@ -37,23 +48,35 @@
 
 /* ========================================================
    DARK MODE THEME OVERRIDES ([data-theme="dark"])
+   Accurate BIT Information Portal Theme: Premium Slate-Blue Charcoal
 ======================================================== */
 [data-theme="dark"] {
-  --bg-dark: #090d16;        /* Deep Obsidian Navy Canvas */
-  --bg-card: #151e2e;        /* Dark Slate Card Surface */
-  --bg-card-hover: #1e293b;  /* Soft Dark Hover Surface */
-  --bg-subtle: #1e293b;      /* Dark Neutral Container */
-  --border-card: #273549;    /* Dark Card Border */
-  --border-strong: #334155;  /* Emphasized Dark Border */
-  --border-glass: #273549;   /* Glass Dark Border */
+  --bg-dark: #0c1424;        /* Rich Slate-Blue Midnight Canvas */
+  --bg-card: #121c30;        /* Elegant Dark Slate-Blue Card Surface */
+  --bg-card-hover: #17243c;  /* Soft Slate-Blue Hover Surface */
+  --bg-subtle: #0c1424;      /* Seamless Background Container */
+  --border-card: #1c2b42;    /* Crisp Slate-Blue Border */
+  --border-strong: #283c5a;  /* Emphasized Slate-Blue Border */
+  --border-glass: #1c2b42;   /* Glass Border */
 
-  --primary: #38bdf8;
-  --primary-hover: #0284c7;
-  --primary-subtle: rgba(56, 189, 248, 0.12);
+  --sidebar-bg: #0c1424;
+  --sidebar-text: #8da2be;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.04);
+  --sidebar-hover-text: #f1f5f9;
+  --sidebar-active-bg: rgba(0, 163, 255, 0.08);
+  --sidebar-active-border: rgba(0, 163, 255, 0.35);
+  --sidebar-active-text: #00a3ff;
+  --sidebar-search-bg: #080d19;
 
-  --text-main: #f8fafc;      /* Crisp White Slate Text */
-  --text-muted: #cbd5e1;     /* Light Muted Slate */
-  --text-subtle: #94a3b8;    /* Muted Labels */
+  --header-bg: #0c1424;
+
+  --primary: #0091ff;
+  --primary-hover: #0077d6;
+  --primary-subtle: rgba(0, 145, 255, 0.15);
+
+  --text-main: #f1f5f9;      /* Crisp Silver-White Slate Text */
+  --text-muted: #8da2be;     /* Medium Slate-Blue Description */
+  --text-subtle: #5a6e88;    /* Muted Labels & Section Headers */
 }
 
 * {
@@ -274,46 +297,50 @@ h1, h2, h3, h4, h5, h6 {
   margin: auto;
 }
 
-/* Dark Mode Comprehensive Component Rules */
+/* Dark Mode Comprehensive Component Rules (BIT Information Portal Style) */
 [data-theme="dark"] header,
 [data-theme="dark"] aside,
-[data-theme="dark"] footer,
+[data-theme="dark"] footer {
+  background-color: #0c1424 !important;
+  border-color: #1c2b42 !important;
+}
+
 [data-theme="dark"] section {
-  background-color: #090d16 !important;
-  border-color: #273549 !important;
+  border-color: #1c2b42 !important;
 }
 
 [data-theme="dark"] .glass-panel,
 [data-theme="dark"] .modal-content {
-  background-color: #151e2e !important;
-  border-color: #273549 !important;
-  color: #f8fafc !important;
+  background-color: #121c30 !important;
+  border-color: #1c2b42 !important;
+  color: #f1f5f9 !important;
 }
 
 [data-theme="dark"] div[style*="background: #ffffff"],
 [data-theme="dark"] div[style*="background: rgb(255, 255, 255)"],
 [data-theme="dark"] div[style*="background: #f8fafc"],
 [data-theme="dark"] div[style*="background: rgb(248, 250, 252)"] {
-  background-color: #151e2e !important;
-  border-color: #273549 !important;
-  color: #f8fafc !important;
+  background-color: #121c30 !important;
+  border-color: #1c2b42 !important;
+  color: #f1f5f9 !important;
 }
 
 [data-theme="dark"] div[style*="background: linear-gradient"],
 [data-theme="dark"] div[style*="background: #eff6ff"],
-[data-theme="dark"] div[style*="background: #f5f3ff"] {
-  background: #1a2333 !important;
-  border-color: #273549 !important;
+[data-theme="dark"] div[style*="background: #f5f3ff"],
+[data-theme="dark"] div[style*="background: #f3e8ff"] {
+  background: #142238 !important;
+  border-color: #1c2b42 !important;
 }
 
 [data-theme="dark"] table th,
 [data-theme="dark"] table td {
-  border-color: #273549 !important;
+  border-color: #1c2b42 !important;
   color: #cbd5e1 !important;
 }
 
 [data-theme="dark"] table td span[style*="color: #0284c7"] {
-  color: #38bdf8 !important;
+  color: #00a3ff !important;
 }
 
 [data-theme="dark"] h1,
@@ -322,18 +349,40 @@ h1, h2, h3, h4, h5, h6 {
 [data-theme="dark"] h4,
 [data-theme="dark"] h5,
 [data-theme="dark"] h6 {
-  color: #f8fafc !important;
+  color: #f1f5f9 !important;
 }
 
 [data-theme="dark"] p,
 [data-theme="dark"] span:not(.badge) {
-  color: #cbd5e1;
+  color: #8da2be;
 }
 
-[data-theme="dark"] input#global-header-search {
-  background-color: #090d16 !important;
-  color: #f8fafc !important;
-  border-color: #273549 !important;
+[data-theme="dark"] input#global-header-search,
+[data-theme="dark"] input.sidebar-search-input,
+[data-theme="dark"] .sidebar-search-input {
+  background-color: #080d19 !important;
+  color: #f1f5f9 !important;
+  border-color: #1c2b42 !important;
+}
+
+/* Sidebar Custom Hover & Active States in Dark Mode */
+[data-theme="dark"] .sidebar-nav-item {
+  color: #8da2be !important;
+}
+
+[data-theme="dark"] .sidebar-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .sidebar-nav-item.active {
+  background: rgba(0, 163, 255, 0.08) !important;
+  border-color: rgba(0, 163, 255, 0.35) !important;
+  color: #00a3ff !important;
+}
+
+[data-theme="dark"] .sidebar-nav-item.active svg {
+  color: #00a3ff !important;
 }
 
 /* Custom Scrollbar */
@@ -348,3 +397,144 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--border-strong);
   border-radius: 3px;
 }
+
+/* ========================================================
+   Item 12: SKELETON SHIMMER ANIMATION
+======================================================== */
+@keyframes skeletonPulse {
+  0% {
+    opacity: 0.6;
+    background-color: var(--bg-subtle);
+  }
+  50% {
+    opacity: 1;
+    background-color: var(--border-card);
+  }
+  100% {
+    opacity: 0.6;
+    background-color: var(--bg-subtle);
+  }
+}
+
+.skeleton-pulse {
+  animation: skeletonPulse 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ========================================================
+   Item 13: FORM ERROR STATES & VALIDATION STYLING
+======================================================== */
+.form-input-error,
+.form-select-error,
+.form-textarea-error,
+.form-input.error {
+  border-color: var(--accent-rose) !important;
+  background-color: rgba(220, 38, 38, 0.03) !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.form-error-text {
+  font-size: 0.775rem;
+  color: var(--accent-rose);
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 500;
+}
+
+.form-error-text::before {
+  content: "⚠";
+  font-size: 0.85rem;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.shake-animation {
+  animation: shake 0.35s ease-in-out;
+}
+
+/* ========================================================
+   Item 20: COMPRESSED & OPTIMIZED IMAGE UTILITIES
+======================================================== */
+.img-responsive {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.img-avatar-opt {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+}
+
+.img-thumbnail-opt {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+/* ========================================================
+   Item 10 & 11: RESPONSIVE BREAKPOINTS (768px & 480px)
+======================================================== */
+@media (max-width: 768px) {
+  /* Show Sticky Mobile CTA on tablet & mobile */
+  .sticky-mobile-cta {
+    display: flex !important;
+  }
+
+  /* Compact padding on mobile */
+  .modal-content {
+    margin: 1rem;
+    padding: 1.25rem !important;
+    max-height: 85vh;
+  }
+
+  .glass-panel {
+    padding: 1.25rem !important;
+  }
+
+  /* Footer stack on mobile */
+  footer .footer-content-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+    text-align: left !important;
+  }
+
+  /* Form layouts stack on mobile */
+  .form-row {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 0.9rem;
+  }
+
+  h1 {
+    font-size: 1.65rem !important;
+  }
+
+  h2 {
+    font-size: 1.25rem !important;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+

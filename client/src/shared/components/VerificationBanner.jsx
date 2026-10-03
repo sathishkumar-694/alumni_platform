@@ -20,7 +20,7 @@ export const VerificationBanner = () => {
         border: `1px solid ${user.verification_status === 'PENDING' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`,
         display: 'flex',
         alignItems: 'center',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         gap: '1rem'
       }}
     >

@@ -18,8 +18,40 @@ export class DomainsRepository {
     return await db.domains.create(domainData);
   }
 
-  async updateDomain(id, updates) {
-    return await db.domains.update(id, updates);
+  async createDomainRequest({ mentor_id, name, description }) {
+    return await db.domainRequests.create({ mentor_id, name, description });
+  }
+
+  async findPendingDomainRequests() {
+    return await db.domainRequests.findPending();
+  }
+
+  async findDomainRequestById(id) {
+    return await db.domainRequests.findById(id);
+  }
+
+  async updateDomainRequestStatus(id, status) {
+    return await db.domainRequests.updateStatus(id, status);
+  }
+
+  async createNotification(data) {
+    return await db.notifications.create(data);
+  }
+
+  async findStudentProfileByUserId(userId) {
+    return await db.studentProfiles.findByUserId(userId);
+  }
+
+  async updateStudentProfile(userId, updates) {
+    return await db.studentProfiles.update(userId, updates);
+  }
+
+  async findAlumniProfileByUserId(userId) {
+    return await db.alumniProfiles.findByUserId(userId);
+  }
+
+  async updateAlumniProfile(userId, updates) {
+    return await db.alumniProfiles.update(userId, updates);
   }
 
   async findAllStudentProfiles() {
@@ -29,45 +61,18 @@ export class DomainsRepository {
     return profiles.filter(Boolean);
   }
 
-  async findAllVerifiedAlumniProfiles() {
+  async findAllAlumniProfiles() {
     const allUsers = await db.users.find();
     const alumni = allUsers.filter(u => u.role === 'ALUMNI' && u.verification_status === 'VERIFIED');
-    const profiles = await Promise.all(alumni.map(u => db.alumniProfiles.findByUserId(u.id)));
-    return profiles.filter(Boolean);
-  }
-
-  async findStudentProfileByUserId(userId) {
-    return await db.studentProfiles.findByUserId(userId);
-  }
-
-  async updateStudentProfile(userId, updates) {
-    return await db.studentProfiles.createOrUpdate(userId, updates);
-  }
-
-  async findAlumniProfileByUserId(userId) {
-    return await db.alumniProfiles.findByUserId(userId);
-  }
-
-  async updateAlumniProfile(userId, updates) {
-    return await db.alumniProfiles.createOrUpdate(userId, updates);
-  }
-
-  async findVerifiedAlumniUsers() {
-    const allUsers = await db.users.find();
-    return allUsers.filter(u => u.role === 'ALUMNI' && u.verification_status === 'VERIFIED');
+    const profiles = await Promise.all(alumni.map(async u => {
+      const p = await db.alumniProfiles.findByUserId(u.id);
+      return { user: u, profile: p };
+    }));
+    return profiles.filter(p => p.profile);
   }
 
   async findAllActiveMentorships() {
-    const all = await db.activeMentorships.find();
-    return all.filter(a => a.status === 'ACTIVE');
-  }
-
-  async findAllMilestones() {
-    return await db.milestones.find();
-  }
-
-  async logAuditAction(adminId, action, targetUserId, details) {
-    return await db.auditLogs.log(adminId, action, targetUserId, details);
+    return await db.activeMentorships.find();
   }
 }
 

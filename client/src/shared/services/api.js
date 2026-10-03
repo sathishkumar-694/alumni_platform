@@ -1,54 +1,58 @@
 const DEFAULT_HOST = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : 'localhost';
 const ENV_API_URL = import.meta.env?.VITE_API_BASE_URL;
 
-const PORTS_TO_PROBE = [5008, 5007, 5006, 5005, 5004, 5003, 5002, 5001, 5000];
-let cachedActiveApiBaseUrl = ENV_API_URL || (typeof localStorage !== 'undefined' ? localStorage.setItem : null);
+const PORTS_TO_PROBE = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5010, 5012, 5015, 5020];
+let cachedActiveApiBaseUrl = ENV_API_URL || null;
 
 let activePortPromise = null;
 
-export const getActiveApiUrl = async () => {
-  if (cachedActiveApiBaseUrl && typeof cachedActiveApiBaseUrl === 'string') {
+export const getActiveApiUrl = async (forceRefresh = false) => {
+  if (!forceRefresh && cachedActiveApiBaseUrl && typeof cachedActiveApiBaseUrl === 'string') {
     return cachedActiveApiBaseUrl;
   }
 
-  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('campusbridge_active_api_url') : null;
-  if (saved) {
-    try {
-      const res = await fetch(`${saved}/health`, { signal: AbortSignal.timeout(200) });
-      if (res.ok) {
-        cachedActiveApiBaseUrl = saved;
-        return saved;
+  if (!forceRefresh) {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('campusbridge_active_api_url') : null;
+    if (saved) {
+      try {
+        const res = await fetch(`${saved}/health`, { signal: AbortSignal.timeout(300) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.service?.includes('CampusBridge')) {
+            cachedActiveApiBaseUrl = saved;
+            return saved;
+          }
+        }
+      } catch (e) {
+        // Saved port offline or stale
       }
-    } catch (e) {
-      // Saved port offline, probe in parallel
     }
   }
 
-  if (!activePortPromise) {
-    activePortPromise = (async () => {
-      const probePromises = PORTS_TO_PROBE.map(async (port) => {
-        const url = `http://${DEFAULT_HOST}:${port}/api/v1`;
-        try {
-          const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(300) });
-          if (res.ok) return url;
-        } catch {}
-        throw new Error(`Port ${port} unavailable`);
-      });
-
+  activePortPromise = (async () => {
+    for (const port of PORTS_TO_PROBE) {
+      const url = `http://${DEFAULT_HOST}:${port}/api/v1`;
       try {
-        const workingUrl = await Promise.any(probePromises);
-        cachedActiveApiBaseUrl = workingUrl;
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('campusbridge_active_api_url', workingUrl);
+        const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(250) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.service?.includes('CampusBridge')) {
+            cachedActiveApiBaseUrl = url;
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('campusbridge_active_api_url', url);
+            }
+            return url;
+          }
         }
-        return workingUrl;
-      } catch (err) {
-        const fallbackUrl = `http://${DEFAULT_HOST}:5001/api/v1`;
-        cachedActiveApiBaseUrl = fallbackUrl;
-        return fallbackUrl;
+      } catch (e) {
+        // Continue to next port
       }
-    })();
-  }
+    }
+
+    const fallbackUrl = `http://${DEFAULT_HOST}:5001/api/v1`;
+    cachedActiveApiBaseUrl = fallbackUrl;
+    return fallbackUrl;
+  })();
 
   return await activePortPromise;
 };
@@ -58,61 +62,86 @@ export const getApiOrigin = () => {
   return base.replace(/\/api\/v1\/?$/, '');
 };
 
-export const getAssetUrl = (url) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+export const getAssetUrl = (pathStr) => {
+  if (!pathStr) return '';
+  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
+    return pathStr;
+  }
   const origin = getApiOrigin();
-  if (url.startsWith('/')) return `${origin}${url}`;
-  return `${origin}/${url}`;
+  const cleanPath = pathStr.startsWith('/') ? pathStr : `/${pathStr}`;
+  return `${origin}${cleanPath}`;
 };
 
 export const apiClient = async (endpoint, options = {}) => {
-  const baseUrl = await getActiveApiUrl();
-  const token = localStorage.getItem('campusbridge_token');
+  let baseUrl = await getActiveApiUrl();
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('campusbridge_token') : null;
 
   const headers = {
+    'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   };
 
-  if (!(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+  // Normalize endpoint to always include /api/v1 prefix cleanly
+  let rawEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  if (rawEndpoint.startsWith('/api/v1')) {
+    rawEndpoint = rawEndpoint.replace('/api/v1', '');
   }
 
-  let response = null;
+  const rootOrigin = getApiOrigin();
+  const fullUrl = `${rootOrigin}/api/v1${rawEndpoint}`;
 
+  let response;
   try {
-    response = await fetch(`${baseUrl}${endpoint}`, {
+    response = await fetch(fullUrl, {
       ...options,
       headers
     });
-  } catch (err) {
-    // If request failed, clear cached port and retry once with fresh port detection
+  } catch (netErr) {
+    // Port failed/changed: clear cache, force refresh discovery, and retry request
     cachedActiveApiBaseUrl = null;
-    activePortPromise = null;
-    const freshUrl = await getActiveApiUrl();
-    response = await fetch(`${freshUrl}${endpoint}`, {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('campusbridge_active_api_url');
+    }
+    const freshBaseUrl = await getActiveApiUrl(true);
+    const freshOrigin = freshBaseUrl.replace(/\/api\/v1\/?$/, '');
+    response = await fetch(`${freshOrigin}/api/v1${rawEndpoint}`, {
       ...options,
       headers
     });
   }
 
-  if (!response) {
-    throw new Error('Unable to connect to CampusBridge backend server. Please verify backend is running.');
+  // If request returned 404 non-JSON, re-verify port and retry once
+  if (response.status === 404) {
+    const textPreview = await response.clone().text();
+    if (textPreview.includes('<!DOCTYPE html>') || textPreview.includes('Cannot POST') || textPreview.includes('Cannot GET')) {
+      cachedActiveApiBaseUrl = null;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('campusbridge_active_api_url');
+      }
+      const freshBaseUrl = await getActiveApiUrl(true);
+      const freshOrigin = freshBaseUrl.replace(/\/api\/v1\/?$/, '');
+      if (`${freshOrigin}/api/v1` !== baseUrl) {
+        response = await fetch(`${freshOrigin}/api/v1${rawEndpoint}`, {
+          ...options,
+          headers
+        });
+      }
+    }
   }
 
-  let data = null;
-  const contentType = response.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    data = await response.json();
-  } else {
-    const text = await response.text();
-    throw new Error(`Server returned non-JSON error (${response.status}) from endpoint '${endpoint}'`);
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const rawText = await response.text();
+    throw new Error(
+      `Server returned non-JSON error (${response.status}) from endpoint '${endpoint}': ${rawText.slice(0, 150)}`
+    );
   }
+
+  const data = await response.json();
 
   if (!response.ok) {
-    const errorMsg = data?.message || `Request failed with status ${response.status}`;
-    throw new Error(errorMsg);
+    throw new Error(data.message || 'An error occurred while communicating with the server');
   }
 
   return data;

@@ -3,7 +3,17 @@ import { db } from '../../config/db.js';
 export class VerificationRepository {
   async findPendingAndRejectedUsers() {
     const allUsers = await db.users.find();
-    return allUsers.filter(u => u.verification_status === 'PENDING' || u.verification_status === 'REJECTED');
+    // Filter ONLY users with PENDING verification status
+    const pendingUsers = allUsers.filter(u => u.verification_status === 'PENDING');
+    
+    // Deduplicate by user ID
+    const uniqueMap = new Map();
+    pendingUsers.forEach(u => {
+      if (u.id && !uniqueMap.has(u.id)) {
+        uniqueMap.set(u.id, u);
+      }
+    });
+    return Array.from(uniqueMap.values());
   }
 
   async findUserById(userId) {

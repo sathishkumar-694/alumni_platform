@@ -12,13 +12,19 @@ export class VerificationService {
       } else if (user.role === 'ALUMNI') {
         profile = await verificationRepository.getAlumniProfile(user.id);
       }
+      const submittedAt = user.created_at || new Date().toISOString();
       return {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        verification_status: user.verification_status,
-        created_at: user.created_at,
+        id: `v-${user.id}`,
+        user_id: user.id,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          verification_status: user.verification_status
+        },
+        submitted_at: submittedAt,
+        status: user.verification_status,
         profile
       };
     }));
@@ -38,9 +44,9 @@ export class VerificationService {
 
     await verificationRepository.logAuditAction(
       adminId,
-      `USER_VERIFICATION_${status}`,
+      'VERIFICATION_STATUS_UPDATED',
       userId,
-      `Admin updated status for ${user.name} (${user.role}) to ${status}.${reason ? ` Reason: ${reason}` : ''}`
+      `Admin updated user ${user.email} status to ${status}.${reason ? ` Reason: ${reason}` : ''}`
     );
 
     return updatedUser;

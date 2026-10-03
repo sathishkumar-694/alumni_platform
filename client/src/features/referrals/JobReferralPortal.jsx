@@ -132,7 +132,7 @@ export const JobReferralPortal = () => {
                   padding: '1.5rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'space-between',
+                  justifyContent: 'space-between',
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border-card)'
                 }}

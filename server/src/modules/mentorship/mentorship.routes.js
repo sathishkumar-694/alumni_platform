@@ -6,7 +6,8 @@ import {
   getMyRequests,
   getMyActiveMentorships,
   reassignMentorAdmin,
-  getAllMentorshipsMatrixAdmin
+  getAllMentorshipsMatrixAdmin,
+  getAllMentorshipRequestsAdmin
 } from './mentorship.controller.js';
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { authorize, requireVerified } from '../../middleware/role.middleware.js';
@@ -37,6 +38,9 @@ router.get('/active/my', getMyActiveMentorships);
 router.get('/my-mentorships', getMyActiveMentorships);
 
 // Admin Routes
+router.get('/admin/requests', authorize('ADMIN'), getAllMentorshipRequestsAdmin);
+router.get('/requests/all', authorize('ADMIN'), getAllMentorshipRequestsAdmin);
+
 router.post('/admin/:mentorshipId/reassign', authorize('ADMIN'), validateBody(['newMentorId']), reassignMentorAdmin);
 router.patch('/admin/:mentorshipId/reassign', authorize('ADMIN'), validateBody(['newMentorId']), reassignMentorAdmin);
 router.post('/admin/reassign/:mentorshipId', authorize('ADMIN'), validateBody(['newMentorId']), reassignMentorAdmin);

@@ -1,30 +1,16 @@
 import { queryMySQL } from './mysql.js';
 
-const parseJSON = (data) => {
-  if (!data) return [];
-  if (typeof data === 'object') return data;
-  try {
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-};
-
-const formatMySQLDateTime = (dateInput) => {
-  if (!dateInput) {
-    return new Date().toISOString().slice(0, 19).replace('T', ' ');
-  }
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) {
-    return new Date().toISOString().slice(0, 19).replace('T', ' ');
-  }
+const formatMySQLDateTime = (dateValue) => {
+  if (!dateValue) return new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 19).replace('T', ' ');
   return d.toISOString().slice(0, 19).replace('T', ' ');
 };
 
 export const db = {
   users: {
     find: async () => {
-      return await queryMySQL('SELECT * FROM `users` ORDER BY `created_at` DESC');
+      return await queryMySQL('SELECT * FROM `users`');
     },
     findById: async (id) => {
       const rows = await queryMySQL('SELECT * FROM `users` WHERE `id` = ?', [id]);
@@ -34,11 +20,11 @@ export const db = {
       const rows = await queryMySQL('SELECT * FROM `users` WHERE LOWER(`email`) = LOWER(?)', [email]);
       return rows[0] || null;
     },
-    create: async (userData) => {
-      const id = userData.id || `u-${Date.now()}`;
+    create: async (user) => {
+      const id = user.id || `u-${Date.now()}`;
       await queryMySQL(
         'INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `verification_status`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, userData.name, userData.email, userData.password_hash, userData.role, userData.verification_status || 'PENDING']
+        [id, user.name, user.email, user.password_hash, user.role, user.verification_status || 'PENDING']
       );
       const rows = await queryMySQL('SELECT * FROM `users` WHERE `id` = ?', [id]);
       return rows[0];
@@ -58,101 +44,193 @@ export const db = {
   },
 
   studentProfiles: {
+    find: async () => {
+      const rows = await queryMySQL('SELECT * FROM `student_profiles`');
+      return rows.map(r => ({
+        ...r,
+        interests: r.interests ? (typeof r.interests === 'string' ? JSON.parse(r.interests) : r.interests) : []
+      }));
+    },
     findByUserId: async (userId) => {
       const rows = await queryMySQL('SELECT * FROM `student_profiles` WHERE `user_id` = ?', [userId]);
       if (!rows[0]) return null;
       return {
         ...rows[0],
-        interests: parseJSON(rows[0].interests)
+        interests: rows[0].interests ? (typeof rows[0].interests === 'string' ? JSON.parse(rows[0].interests) : rows[0].interests) : []
       };
     },
-    createOrUpdate: async (userId, data) => {
-      const existing = await queryMySQL('SELECT * FROM `student_profiles` WHERE `user_id` = ?', [userId]);
-      const formattedInterests = JSON.stringify(data.interests || []);
-      if (existing.length > 0) {
-        await queryMySQL(
-          'UPDATE `student_profiles` SET `reg_number` = ?, `academic_year` = ?, `department` = ?, `career_goals` = ?, `student_id_card_url` = ?, `interests` = ? WHERE `user_id` = ?',
-          [data.reg_number, data.academic_year, data.department, data.career_goals || '', data.student_id_card_url || '', formattedInterests, userId]
-        );
-      } else {
-        const id = `sp-${Date.now()}`;
-        await queryMySQL(
-          'INSERT INTO `student_profiles` (`id`, `user_id`, `reg_number`, `academic_year`, `department`, `career_goals`, `student_id_card_url`, `interests`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [id, userId, data.reg_number, data.academic_year, data.department, data.career_goals || '', data.student_id_card_url || '', formattedInterests]
-        );
-      }
+    create: async (profile) => {
+      const id = profile.id || `sp-${Date.now()}`;
+      const interestsJson = JSON.stringify(profile.interests || []);
+      await queryMySQL(
+        'INSERT INTO `student_profiles` (`id`, `user_id`, `reg_number`, `academic_year`, `department`, `career_goals`, `interests`) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, profile.user_id, profile.reg_number || '', profile.academic_year || '', profile.department || '', profile.career_goals || '', interestsJson]
+      );
+      const rows = await queryMySQL('SELECT * FROM `student_profiles` WHERE `id` = ?', [id]);
+      return { ...rows[0], interests: profile.interests || [] };
+    },
+    update: async (userId, updates) => {
+      if (!updates || Object.keys(updates).length === 0) return await db.studentProfiles.findByUserId(userId);
+      const fields = [];
+      const values = [];
+      Object.keys(updates).forEach(key => {
+        fields.push(`\`${key}\` = ?`);
+        values.push(key === 'interests' ? JSON.stringify(updates[key]) : updates[key]);
+      });
+      values.push(userId);
+      await queryMySQL(`UPDATE \`student_profiles\` SET ${fields.join(', ')} WHERE \`user_id\` = ?`, values);
       return await db.studentProfiles.findByUserId(userId);
+    },
+    createOrUpdate: async (userId, data) => {
+      const existing = await db.studentProfiles.findByUserId(userId);
+      if (existing) {
+        return await db.studentProfiles.update(userId, data);
+      } else {
+        return await db.studentProfiles.create({ ...data, user_id: userId });
+      }
     }
   },
 
   alumniProfiles: {
+    find: async () => {
+      const rows = await queryMySQL('SELECT * FROM `alumni_profiles`');
+      return rows.map(r => ({
+        ...r,
+        expertise: r.expertise ? (typeof r.expertise === 'string' ? JSON.parse(r.expertise) : r.expertise) : []
+      }));
+    },
     findByUserId: async (userId) => {
       const rows = await queryMySQL('SELECT * FROM `alumni_profiles` WHERE `user_id` = ?', [userId]);
       if (!rows[0]) return null;
       return {
         ...rows[0],
-        expertise: parseJSON(rows[0].expertise)
+        expertise: rows[0].expertise ? (typeof rows[0].expertise === 'string' ? JSON.parse(rows[0].expertise) : rows[0].expertise) : []
       };
     },
-    createOrUpdate: async (userId, data) => {
-      const existing = await queryMySQL('SELECT * FROM `alumni_profiles` WHERE `user_id` = ?', [userId]);
-      const formattedExpertise = JSON.stringify(data.expertise || []);
-      if (existing.length > 0) {
-        await queryMySQL(
-          'UPDATE `alumni_profiles` SET `company` = ?, `designation` = ?, `experience_years` = ?, `graduation_year` = ?, `linkedin_url` = ?, `alumni_id_card_url` = ?, `max_capacity` = ?, `current_capacity` = ?, `bio` = ?, `expertise` = ? WHERE `user_id` = ?',
-          [data.company, data.designation, data.experience_years || 1, data.graduation_year || 2020, data.linkedin_url || '', data.alumni_id_card_url || '', data.max_capacity || 5, data.current_capacity || 0, data.bio || '', formattedExpertise, userId]
-        );
-      } else {
-        const id = `ap-${Date.now()}`;
-        await queryMySQL(
-          'INSERT INTO `alumni_profiles` (`id`, `user_id`, `company`, `designation`, `experience_years`, `graduation_year`, `linkedin_url`, `alumni_id_card_url`, `max_capacity`, `current_capacity`, `bio`, `expertise`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [id, userId, data.company, data.designation, data.experience_years || 1, data.graduation_year || 2020, data.linkedin_url || '', data.alumni_id_card_url || '', data.max_capacity || 5, data.current_capacity || 0, data.bio || '', formattedExpertise]
-        );
-      }
+    create: async (profile) => {
+      const id = profile.id || `ap-${Date.now()}`;
+      const expertiseJson = JSON.stringify(profile.expertise || []);
+      await queryMySQL(
+        'INSERT INTO `alumni_profiles` (`id`, `user_id`, `company`, `designation`, `experience_years`, `graduation_year`, `max_capacity`, `current_capacity`, `expertise`, `bio`, `linkedin_url`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, profile.user_id, profile.company || '', profile.designation || '', profile.experience_years || 0, profile.graduation_year || 2020, profile.max_capacity || 5, profile.current_capacity || 0, expertiseJson, profile.bio || '', profile.linkedin_url || '']
+      );
+      const rows = await queryMySQL('SELECT * FROM `alumni_profiles` WHERE `id` = ?', [id]);
+      return { ...rows[0], expertise: profile.expertise || [] };
+    },
+    update: async (userId, updates) => {
+      if (!updates || Object.keys(updates).length === 0) return await db.alumniProfiles.findByUserId(userId);
+      const fields = [];
+      const values = [];
+      Object.keys(updates).forEach(key => {
+        fields.push(`\`${key}\` = ?`);
+        values.push(key === 'expertise' ? JSON.stringify(updates[key]) : updates[key]);
+      });
+      values.push(userId);
+      await queryMySQL(`UPDATE \`alumni_profiles\` SET ${fields.join(', ')} WHERE \`user_id\` = ?`, values);
       return await db.alumniProfiles.findByUserId(userId);
+    },
+    createOrUpdate: async (userId, data) => {
+      const existing = await db.alumniProfiles.findByUserId(userId);
+      if (existing) {
+        return await db.alumniProfiles.update(userId, data);
+      } else {
+        return await db.alumniProfiles.create({ ...data, user_id: userId });
+      }
     }
   },
 
   domains: {
     find: async () => {
-      const rows = await queryMySQL('SELECT * FROM `domains` ORDER BY `name` ASC');
-      return rows.map(r => ({
-        ...r,
-        stats: parseJSON(r.stats)
-      }));
+      return await queryMySQL('SELECT * FROM `domains` ORDER BY `name` ASC');
     },
     findById: async (id) => {
       const rows = await queryMySQL('SELECT * FROM `domains` WHERE `id` = ?', [id]);
-      if (!rows[0]) return null;
-      return {
-        ...rows[0],
-        stats: parseJSON(rows[0].stats)
-      };
+      return rows[0] || null;
     },
-    create: async (domainData) => {
-      const id = domainData.id || `d-${Date.now()}`;
-      const formattedStats = JSON.stringify(domainData.stats || { interested_students: 0, available_mentors: 0, milestone_completion_rate: 0 });
+    create: async (data) => {
+      const id = data.id || `d-${Date.now()}`;
+      const category = data.category || 'Core Engineering';
+      const icon = data.icon || 'Code';
       await queryMySQL(
-        'INSERT INTO `domains` (`id`, `name`, `category`, `description`, `icon`, `stats`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, domainData.name, domainData.category, domainData.description, domainData.icon || 'Code', formattedStats]
+        'INSERT INTO `domains` (`id`, `name`, `category`, `description`, `icon`) VALUES (?, ?, ?, ?, ?)',
+        [id, data.name, category, data.description || '', icon]
       );
-      return await db.domains.findById(id);
+      const rows = await queryMySQL('SELECT * FROM `domains` WHERE `id` = ?', [id]);
+      return rows[0];
+    }
+  },
+
+  domainRequests: {
+    findPending: async () => {
+      return await queryMySQL('SELECT * FROM `domain_requests` WHERE `status` = "PENDING" ORDER BY `created_at` DESC');
+    },
+    findById: async (id) => {
+      const rows = await queryMySQL('SELECT * FROM `domain_requests` WHERE `id` = ?', [id]);
+      return rows[0] || null;
+    },
+    create: async (data) => {
+      const id = data.id || `dr-${Date.now()}`;
+      await queryMySQL(
+        'INSERT INTO `domain_requests` (`id`, `mentor_id`, `name`, `description`, `status`) VALUES (?, ?, ?, ?, ?)',
+        [id, data.mentor_id, data.name, data.description || '', 'PENDING']
+      );
+      const rows = await queryMySQL('SELECT * FROM `domain_requests` WHERE `id` = ?', [id]);
+      return rows[0];
+    },
+    updateStatus: async (id, status) => {
+      await queryMySQL('UPDATE `domain_requests` SET `status` = ? WHERE `id` = ?', [status, id]);
+      const rows = await queryMySQL('SELECT * FROM `domain_requests` WHERE `id` = ?', [id]);
+      return rows[0];
+    }
+  },
+
+  verifications: {
+    find: async () => {
+      return await queryMySQL('SELECT * FROM `id_verifications` ORDER BY `submitted_at` DESC');
+    },
+    findByUserId: async (userId) => {
+      const rows = await queryMySQL('SELECT * FROM `id_verifications` WHERE `user_id` = ?', [userId]);
+      return rows[0] || null;
+    },
+    create: async (data) => {
+      const id = data.id || `v-${Date.now()}`;
+      await queryMySQL(
+        'INSERT INTO `id_verifications` (`id`, `user_id`, `document_type`, `document_url`, `status`) VALUES (?, ?, ?, ?, ?)',
+        [id, data.user_id, data.document_type || 'ID_CARD', data.document_url || '', data.status || 'PENDING']
+      );
+      const rows = await queryMySQL('SELECT * FROM `id_verifications` WHERE `id` = ?', [id]);
+      return rows[0];
+    },
+    update: async (userId, updates) => {
+      const fields = [];
+      const values = [];
+      Object.keys(updates).forEach(key => {
+        fields.push(`\`${key}\` = ?`);
+        values.push(updates[key]);
+      });
+      values.push(userId);
+      await queryMySQL(`UPDATE \`id_verifications\` SET ${fields.join(', ')} WHERE \`user_id\` = ?`, values);
+      return await db.verifications.findByUserId(userId);
     }
   },
 
   mentorshipRequests: {
     find: async () => {
-      return await queryMySQL('SELECT * FROM `mentorship_requests` ORDER BY `requested_at` DESC');
+      try {
+        return await queryMySQL('SELECT * FROM `mentorship_requests` ORDER BY `requested_at` DESC');
+      } catch (err) {
+        return await queryMySQL('SELECT * FROM `mentorship_requests` ORDER BY `id` DESC');
+      }
     },
     findById: async (id) => {
       const rows = await queryMySQL('SELECT * FROM `mentorship_requests` WHERE `id` = ?', [id]);
       return rows[0] || null;
     },
     create: async (data) => {
-      const id = data.id || `req-${Date.now()}`;
+      const id = data.id || `mr-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `mentorship_requests` (`id`, `student_id`, `mentor_id`, `domain_id`, `status`, `message`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.student_id, data.mentor_id, data.domain_id, data.status || 'PENDING', data.message || '']
+        'INSERT INTO `mentorship_requests` (`id`, `student_id`, `mentor_id`, `domain_id`, `message`, `status`) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, data.student_id, data.mentor_id, data.domain_id || 'd-1', data.message || '', data.status || 'PENDING']
       );
       const rows = await queryMySQL('SELECT * FROM `mentorship_requests` WHERE `id` = ?', [id]);
       return rows[0];
@@ -173,30 +251,19 @@ export const db = {
 
   activeMentorships: {
     find: async () => {
-      return await queryMySQL('SELECT * FROM `active_mentorships` ORDER BY `started_at` DESC');
-    },
-    findById: async (id) => {
-      const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
-      return rows[0] || null;
+      try {
+        return await queryMySQL('SELECT * FROM `active_mentorships` ORDER BY `id` DESC');
+      } catch (err) {
+        return await queryMySQL('SELECT * FROM `active_mentorships`');
+      }
     },
     create: async (data) => {
       const id = data.id || `am-${Date.now()}`;
+      const formattedStartDate = formatMySQLDateTime(data.start_date || new Date());
       await queryMySQL(
         'INSERT INTO `active_mentorships` (`id`, `student_id`, `mentor_id`, `domain_id`, `status`) VALUES (?, ?, ?, ?, ?)',
-        [id, data.student_id, data.mentor_id, data.domain_id, data.status || 'ACTIVE']
+        [id, data.student_id, data.mentor_id, data.domain_id || 'd-1', data.status || 'ACTIVE']
       );
-      const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
-      return rows[0];
-    },
-    update: async (id, updates) => {
-      const fields = [];
-      const values = [];
-      Object.keys(updates).forEach(key => {
-        fields.push(`\`${key}\` = ?`);
-        values.push(updates[key]);
-      });
-      values.push(id);
-      await queryMySQL(`UPDATE \`active_mentorships\` SET ${fields.join(', ')} WHERE \`id\` = ?`, values);
       const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
       return rows[0];
     }
@@ -286,10 +353,10 @@ export const db = {
       return await queryMySQL('SELECT * FROM `announcements` ORDER BY `created_at` DESC');
     },
     create: async (data) => {
-      const id = data.id || `ann-${Date.now()}`;
+      const id = data.id || `anc-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `category`, `target_domain_id`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.author_id, data.title, data.content, data.category || 'GENERAL', data.target_domain_id || null]
+        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `target_role`) VALUES (?, ?, ?, ?, ?)',
+        [id, data.author_id, data.title, data.content, data.target_role || 'ALL']
       );
       const rows = await queryMySQL('SELECT * FROM `announcements` WHERE `id` = ?', [id]);
       return rows[0];
@@ -298,24 +365,16 @@ export const db = {
 
   jobReferrals: {
     find: async () => {
-      const rows = await queryMySQL('SELECT * FROM `job_referrals` ORDER BY `created_at` DESC');
-      return rows.map(r => ({
-        ...r,
-        skills: parseJSON(r.skills)
-      }));
+      return await queryMySQL('SELECT * FROM `job_referrals` ORDER BY `created_at` DESC');
     },
     create: async (data) => {
-      const id = data.id || `job-${Date.now()}`;
-      const formattedSkills = JSON.stringify(data.skills || []);
+      const id = data.id || `ref-${Date.now()}`;
       await queryMySQL(
         'INSERT INTO `job_referrals` (`id`, `alumni_id`, `title`, `company`, `location`, `experience_req`, `skills`, `description`, `status`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, data.alumni_id, data.title, data.company, data.location, data.experience_req || '0 - 1 Yr', formattedSkills, data.description || '', data.status || 'OPEN']
+        [id, data.alumni_id, data.title, data.company, data.location, data.experience_req || '0 - 1 Yr', data.skills || '', data.description || '', data.status || 'OPEN']
       );
       const rows = await queryMySQL('SELECT * FROM `job_referrals` WHERE `id` = ?', [id]);
-      return {
-        ...rows[0],
-        skills: parseJSON(rows[0]?.skills)
-      };
+      return rows[0];
     }
   },
 
@@ -331,6 +390,37 @@ export const db = {
       );
       const rows = await queryMySQL('SELECT * FROM `referral_applications` WHERE `id` = ?', [id]);
       return rows[0];
+    }
+  },
+
+  notifications: {
+    findByUserId: async (userId) => {
+      const rows = await queryMySQL(
+        'SELECT * FROM `notifications` WHERE `user_id` = ? ORDER BY `created_at` DESC',
+        [userId]
+      );
+      return rows.map(r => ({
+        ...r,
+        read: Boolean(r.is_read)
+      }));
+    },
+    create: async (data) => {
+      const id = data.id || `n-${Date.now()}`;
+      await queryMySQL(
+        'INSERT INTO `notifications` (`id`, `user_id`, `type`, `title`, `desc`, `target_tab`, `is_read`) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, data.user_id, data.type, data.title, data.desc || '', data.target_tab || 'dashboard', data.is_read || 0]
+      );
+      const rows = await queryMySQL('SELECT * FROM `notifications` WHERE `id` = ?', [id]);
+      return { ...rows[0], read: Boolean(rows[0]?.is_read) };
+    },
+    markAsRead: async (id, userId) => {
+      await queryMySQL('UPDATE `notifications` SET `is_read` = 1 WHERE `id` = ? AND `user_id` = ?', [id, userId]);
+      const rows = await queryMySQL('SELECT * FROM `notifications` WHERE `id` = ?', [id]);
+      return { ...rows[0], read: true };
+    },
+    markAllAsRead: async (userId) => {
+      await queryMySQL('UPDATE `notifications` SET `is_read` = 1 WHERE `user_id` = ?', [userId]);
+      return true;
     }
   },
 

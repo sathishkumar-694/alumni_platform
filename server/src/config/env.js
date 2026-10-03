@@ -15,7 +15,8 @@ export const config = {
     user: cleanEnv(process.env.DB_USER, 'root'),
     password: cleanEnv(process.env.DB_PASSWORD, ''),
     database: cleanEnv(process.env.DB_NAME, 'campusbridge'),
-    port: Number(cleanEnv(process.env.DB_PORT, '3306')) || 3306
+    port: Number(cleanEnv(process.env.DB_PORT, '3306')) || 3306,
+    ssl: cleanEnv(process.env.DB_SSL, 'false') === 'true' || (cleanEnv(process.env.DB_HOST, 'localhost') !== 'localhost' && cleanEnv(process.env.DB_HOST, 'localhost') !== '127.0.0.1')
   },
   cloudinary: {
     cloudName: cleanEnv(process.env.CLOUDINARY_CLOUD_NAME, ''),

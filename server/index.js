@@ -1,4 +1,4 @@
-import express from "express";
+import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
@@ -6,7 +6,8 @@ import { config } from './src/config/env.js';
 import { ensureDatabaseSchema } from './src/config/mysql.js';
 import { errorMiddleware } from './src/middleware/error.middleware.js';
 import { renderSwaggerHTML, openApiSpec } from './src/config/swagger.js';
-// Feature Module Router
+
+// Feature Module Routes
 import authRoutes from './src/modules/auth/auth.routes.js';
 import verificationRoutes from './src/modules/verification/verification.routes.js';
 import usersRoutes from './src/modules/users/users.routes.js';
@@ -17,6 +18,7 @@ import sessionsRoutes from './src/modules/sessions/sessions.routes.js';
 import resourcesRoutes from './src/modules/resources/resources.routes.js';
 import announcementsRoutes from './src/modules/announcements/announcements.routes.js';
 import referralsRoutes from './src/modules/referrals/referrals.routes.js';
+import notificationsRoutes from './src/modules/notifications/notifications.routes.js';
 import analyticsRoutes from './src/modules/analytics/analytics.routes.js';
 import auditRoutes from './src/modules/audit/audit.routes.js';
 
@@ -44,7 +46,7 @@ app.get('/api/v1/openapi.json', (req, res) => {
   res.json(openApiSpec);
 });
 
-// Health check endpoint
+// Health check endpoints
 app.get('/api/v1/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -53,7 +55,15 @@ app.get('/api/v1/health', (req, res) => {
   });
 });
 
-// Feature API Routes
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    service: 'CampusBridge Backend API Engine',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Primary Feature API Routes (/api/v1/*)
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/verification', verificationRoutes);
 app.use('/api/v1/users', usersRoutes);
@@ -64,8 +74,24 @@ app.use('/api/v1/sessions', sessionsRoutes);
 app.use('/api/v1/resources', resourcesRoutes);
 app.use('/api/v1/announcements', announcementsRoutes);
 app.use('/api/v1/referrals', referralsRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/audit', auditRoutes);
+
+// Route Aliases for backward compatibility
+app.use('/auth', authRoutes);
+app.use('/verification', verificationRoutes);
+app.use('/users', usersRoutes);
+app.use('/domains', domainsRoutes);
+app.use('/recommendation', recommendationRoutes);
+app.use('/mentorship', mentorshipRoutes);
+app.use('/sessions', sessionsRoutes);
+app.use('/resources', resourcesRoutes);
+app.use('/announcements', announcementsRoutes);
+app.use('/referrals', referralsRoutes);
+app.use('/notifications', notificationsRoutes);
+app.use('/analytics', analyticsRoutes);
+app.use('/audit', auditRoutes);
 
 // Serve production built client static assets if available
 const clientDistPath = path.join(process.cwd(), '..', 'client', 'dist');
@@ -76,7 +102,8 @@ const distPathToUse = fs.existsSync(clientDistPath) ? clientDistPath : fs.exists
 if (distPathToUse) {
   app.use(express.static(distPathToUse));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/docs') || req.path.startsWith('/uploads')) {
+    const apiPrefixes = ['/api', '/auth', '/verification', '/users', '/domains', '/recommendation', '/mentorship', '/sessions', '/resources', '/announcements', '/referrals', '/notifications', '/analytics', '/audit', '/docs', '/uploads', '/health'];
+    if (apiPrefixes.some(p => req.path.startsWith(p))) {
       return next();
     }
     res.sendFile(path.join(distPathToUse, 'index.html'));

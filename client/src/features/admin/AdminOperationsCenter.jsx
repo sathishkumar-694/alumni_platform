@@ -21,7 +21,8 @@ import {
   Video,
   ExternalLink,
   ChevronRight,
-  User
+  User,
+  Compass
 } from 'lucide-react';
 
 export const AdminOperationsCenter = ({ activeSection }) => {
@@ -32,7 +33,6 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     if (section === 'requests') return 'requests';
     if (section === 'sessions') return 'sessions';
     if (section === 'domains') return 'domains';
-    if (section === 'audit') return 'audit';
     return 'dashboard';
   };
 
@@ -52,7 +52,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [allUsers, setAllUsers] = useState([]);
   const [matrix, setMatrix] = useState([]);
   const [domains, setDomains] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
+  const [pendingDomainRequests, setPendingDomainRequests] = useState([]);
   const [allSessions, setAllSessions] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
 
@@ -79,31 +79,96 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     icon: 'Code'
   });
 
+  const fetchDomainRequests = async () => {
+    try {
+      const res = await apiClient('/domains/requests/pending');
+      const uniqueDomainReqs = [];
+      const seen = new Set();
+      (res.data || []).forEach(dr => {
+        if (dr.id && !seen.has(dr.id)) {
+          seen.add(dr.id);
+          uniqueDomainReqs.push(dr);
+        }
+      });
+      setPendingDomainRequests(uniqueDomainReqs);
+    } catch (err) {
+      console.warn('Pending domain requests error:', err.message);
+    }
+  };
+
   const fetchOperationsData = async () => {
     setLoading(true);
     try {
-      const [analyticsRes, pendingRes, allUsersRes, matrixRes, domainsRes, auditRes] = await Promise.all([
-        apiClient('/analytics/overview'),
-        apiClient('/verification/pending'),
-        apiClient('/users/admin/all'),
-        apiClient('/mentorship/admin/matrix'),
-        apiClient('/domains'),
-        apiClient('/audit')
+      const [analyticsRes, pendingRes, usersRes, matrixRes, requestsRes, domainsRes] = await Promise.all([
+        apiClient('/analytics/overview').catch(() => ({ data: null })),
+        apiClient('/verification/pending').catch(() => ({ data: [] })),
+        apiClient('/users').catch(() => ({ data: [] })),
+        apiClient('/mentorship/admin/matrix').catch(() => ({ data: [] })),
+        apiClient('/mentorship/admin/requests').catch(() => ({ data: [] })),
+        apiClient('/domains').catch(() => ({ data: [] }))
       ]);
 
       setAnalytics(analyticsRes.data);
-      setPendingVerifications(pendingRes.data || []);
-      setAllUsers(allUsersRes.data || []);
-      setMatrix(matrixRes.data || []);
-      setDomains(domainsRes.data || []);
-      setAuditLogs(auditRes.data || []);
 
-      // Extract pending mentorship requests from matrix
-      const pendingReqs = (matrixRes.data || []).filter(m => m.status === 'PENDING' || m.status === 'WAITLISTED');
-      setPendingRequests(pendingReqs);
+      // Deduplicate pending verifications
+      const uniqueVerifications = [];
+      const seenVerifIds = new Set();
+      (pendingRes.data || []).forEach(v => {
+        const id = v.user_id || v.id;
+        if (id && !seenVerifIds.has(id)) {
+          seenVerifIds.add(id);
+          uniqueVerifications.push(v);
+        }
+      });
+      setPendingVerifications(uniqueVerifications);
 
-      // Fetch virtual sessions for active mentorships
-      const activeMentorships = (matrixRes.data || []).filter(m => m.status === 'ACTIVE');
+      // Deduplicate all users
+      const uniqueUsers = [];
+      const seenUserIds = new Set();
+      (usersRes.data || []).forEach(u => {
+        if (u.id && !seenUserIds.has(u.id)) {
+          seenUserIds.add(u.id);
+          uniqueUsers.push(u);
+        }
+      });
+      setAllUsers(uniqueUsers);
+
+      // Deduplicate active matrix
+      const uniqueMatrix = [];
+      const seenMatrixIds = new Set();
+      (matrixRes.data || []).forEach(m => {
+        if (m.id && !seenMatrixIds.has(m.id)) {
+          seenMatrixIds.add(m.id);
+          uniqueMatrix.push(m);
+        }
+      });
+      setMatrix(uniqueMatrix);
+
+      // Deduplicate requests
+      const uniqueReqs = [];
+      const seenReqIds = new Set();
+      (requestsRes.data || []).forEach(r => {
+        if (r.id && !seenReqIds.has(r.id)) {
+          seenReqIds.add(r.id);
+          uniqueReqs.push(r);
+        }
+      });
+      setPendingRequests(uniqueReqs);
+
+      // Deduplicate domains
+      const uniqueDomains = [];
+      const seenDomainIds = new Set();
+      (domainsRes.data || []).forEach(d => {
+        if (d.id && !seenDomainIds.has(d.id)) {
+          seenDomainIds.add(d.id);
+          uniqueDomains.push(d);
+        }
+      });
+      setDomains(uniqueDomains);
+
+      await fetchDomainRequests();
+
+      const activeMentorships = uniqueMatrix.filter(m => m.status === 'ACTIVE');
       let combinedSessions = [];
       for (const m of activeMentorships) {
         try {
@@ -132,25 +197,25 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     fetchOperationsData();
   }, []);
 
-  const handleVerifyAction = async (userId, action) => {
+  const handleVerifyUser = async (userId, action) => {
     try {
-      const status = action === 'APPROVE' ? 'VERIFIED' : 'REJECTED';
       await apiClient(`/verification/users/${userId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ action })
       });
-      showNotification(`User verification status updated to ${status}!`, 'success');
+      showNotification(`Verification status ${action === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`, 'success');
       fetchOperationsData();
-      setPreviewUser(null);
     } catch (err) {
       showNotification(err.message, 'error');
     }
   };
 
-  const handleAdminUserUpdate = async (e) => {
+  const handleUpdateUserByAdmin = async (e) => {
     e.preventDefault();
+    if (!editUser) return;
+
     try {
-      await apiClient(`/users/admin/${editUser.id}/operations`, {
+      await apiClient(`/users/${editUser.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
           verification_status: editForm.verification_status,
@@ -158,7 +223,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           newPassword: editForm.newPassword || undefined
         })
       });
-      showNotification(`Account details for ${editUser.name} updated successfully!`, 'success');
+      showNotification(`Updated ${editUser.name}'s profile parameters`, 'success');
       setEditUser(null);
       fetchOperationsData();
     } catch (err) {
@@ -168,6 +233,8 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
   const handleReassignSubmit = async (e) => {
     e.preventDefault();
+    if (!reassignMentorship || !newMentorId) return;
+
     try {
       await apiClient(`/mentorship/admin/${reassignMentorship.id}/reassign`, {
         method: 'POST',
@@ -176,223 +243,420 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           reason: reassignReason
         })
       });
-      showNotification(`Mentorship reassigned to new mentor!`, 'success');
+      showNotification('Student successfully reassigned to new Alumni Mentor', 'success');
       setReassignMentorship(null);
+      setNewMentorId('');
+      setReassignReason('');
       fetchOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
   };
 
-  const handleCreateDomain = async (e) => {
+  const handleApproveDomainRequest = async (requestId) => {
+    try {
+      await apiClient(`/domains/requests/${requestId}/approve`, { method: 'PATCH' });
+      showNotification('Technical domain request approved and created!', 'success');
+      fetchOperationsData();
+    } catch (err) {
+      showNotification(err.message, 'error');
+    }
+  };
+
+  const handleRejectDomainRequest = async (requestId) => {
+    try {
+      await apiClient(`/domains/requests/${requestId}/reject`, { method: 'PATCH' });
+      showNotification('Domain request rejected', 'info');
+      fetchOperationsData();
+    } catch (err) {
+      showNotification(err.message, 'error');
+    }
+  };
+
+  const handleCreateDomainSubmit = async (e) => {
     e.preventDefault();
     try {
       await apiClient('/domains', {
         method: 'POST',
         body: JSON.stringify(domainForm)
       });
-      showNotification(`Domain '${domainForm.name}' created successfully!`, 'success');
+      showNotification(`Domain '${domainForm.name}' created successfully`, 'success');
       setShowDomainModal(false);
+      setDomainForm({ name: '', category: 'Core Engineering', description: '', icon: 'Code' });
       fetchOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
   };
 
-  const studentsList = allUsers.filter(u => u.role === 'STUDENT');
-  const alumniList = allUsers.filter(u => u.role === 'ALUMNI');
-
-  // Group active mentorships by Alumni Mentor
-  const activePairings = matrix.filter(m => m.status === 'ACTIVE');
-  const mentorToStudentsMap = alumniList.map(mentor => {
-    const mappedMentees = activePairings.filter(m => m.mentor_id === mentor.id || m.mentor_name === mentor.name);
-    return {
-      mentor,
-      mentees: mappedMentees
-    };
-  });
+  const alumniUsers = allUsers.filter(u => u.role === 'ALUMNI');
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '2rem auto', padding: '0 1.5rem' }}>
-      {/* Header Action Row */}
+    <div style={{ maxWidth: '1280px', margin: '1.5rem auto', padding: '0 1.5rem' }}>
+      
+      {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.75rem', color: 'var(--text-main)' }}>
-            {activeSection === 'active_mentorships' ? 'All Active Mentorship Pairings' :
-             activeSection === 'requests' ? 'Pending Requests & Verification Oversight' :
-             activeSection === 'sessions' ? 'System 1-on-1 Virtual Sessions' :
-             'Mentorship Operations Center'}
-          </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Institutional Mentorship Management • Role-Based Operations Center
+          <span className="badge badge-purple" style={{ marginBottom: '0.35rem' }}>
+            <ShieldCheck size={12} /> ADMINISTRATION SYSTEM
+          </span>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>Admin Operations Center</h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+            User ID verification queues, mentorship pair reassignments, capacity overrides & system metrics.
           </p>
         </div>
+
         <button onClick={fetchOperationsData} className="btn btn-secondary btn-sm">
-          <RefreshCw size={14} /> Refresh Center Data
+          <RefreshCw size={14} /> Refresh Matrix
         </button>
       </div>
 
-      {/* KPI Counters */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Total Students</p>
-          <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)' }}>{analytics?.counts?.students || 0}</p>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Verified Alumni Mentors</p>
-          <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-purple)' }}>{analytics?.counts?.alumni || 0}</p>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Active Pairings</p>
-          <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-emerald)' }}>{activePairings.length}</p>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase' }}>Pending Verifications & Requests</p>
-          <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-amber)' }}>
-            {pendingVerifications.length + pendingRequests.length}
-          </p>
-        </div>
-      </div>
-
-      {/* Operations Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-card)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+      {/* Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '2rem' }}>
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`btn btn-sm ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
+          className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
         >
-          <BarChart2 size={16} /> Operations Dashboard
+          <TrendingUp size={15} /> Overview & Analytics
+        </button>
+
+        <button
+          onClick={() => setActiveTab('verifications')}
+          className={`btn ${activeTab === 'verifications' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
+        >
+          <UserCheck size={15} /> Pending ID Verifications {pendingVerifications.length > 0 && (
+            <span className="badge badge-rose" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingVerifications.length}</span>
+          )}
         </button>
 
         <button
           onClick={() => setActiveTab('matrix')}
-          className={`btn btn-sm ${activeTab === 'matrix' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
+          className={`btn ${activeTab === 'matrix' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
         >
-          <TrendingUp size={16} /> Active Mentorship Matrix ({activePairings.length})
+          <Users size={15} /> Active Mentorship Pairings
         </button>
 
         <button
           onClick={() => setActiveTab('requests')}
-          className={`btn btn-sm ${activeTab === 'requests' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
+          className={`btn ${activeTab === 'requests' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
         >
-          <ShieldCheck size={16} /> Pending Requests ({pendingRequests.length + pendingVerifications.length})
+          <Clock size={15} /> Mentorship Requests {pendingRequests.length > 0 && (
+            <span className="badge badge-amber" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingRequests.length}</span>
+          )}
         </button>
 
         <button
-          onClick={() => setActiveTab('sessions')}
-          className={`btn btn-sm ${activeTab === 'sessions' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
+          onClick={() => setActiveTab('users')}
+          className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
         >
-          <Video size={16} /> Virtual Sessions ({allSessions.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('students')}
-          className={`btn btn-sm ${activeTab === 'students' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
-        >
-          <Users size={16} /> Students ({studentsList.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('alumni')}
-          className={`btn btn-sm ${activeTab === 'alumni' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
-        >
-          <Award size={16} /> Alumni Mentors ({alumniList.length})
+          <User size={15} /> User Accounts & Capacity Overrides
         </button>
 
         <button
           onClick={() => setActiveTab('domains')}
-          className={`btn btn-sm ${activeTab === 'domains' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
+          className={`btn ${activeTab === 'domains' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ fontSize: '0.85rem' }}
         >
-          <BookOpen size={16} /> Domains ({domains.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ borderRadius: '8px 8px 0 0' }}
-        >
-          <Clock size={16} /> Audit Logs ({auditLogs.length})
+          <Compass size={15} /> Technical Domains & Mentor Requests {pendingDomainRequests.length > 0 && (
+            <span className="badge badge-rose" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingDomainRequests.length}</span>
+          )}
         </button>
       </div>
 
-      {/* VIEW 1: ACTIVE MENTORSHIPS MATRIX */}
-      {activeTab === 'matrix' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-          <div>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-              Active Alumni Mentors & Mapped Student Mentees
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-              Hierarchical view of each Alumni Mentor and their assigned student mentees.
-            </p>
-          </div>
-
-          {mentorToStudentsMap.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No active mentorship pairings found in the system.
-            </div>
-          ) : (
-            mentorToStudentsMap.map(({ mentor, mentees }) => (
-              <div key={mentor.id} className="glass-panel" style={{ padding: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-card)', paddingBottom: '1rem', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 }}>
-                      {mentor.name.charAt(0)}
-                    </div>
-                    <div>
-                      <h4 style={{ fontSize: '1.15rem', color: 'var(--text-main)' }}>{mentor.name}</h4>
-                      <p style={{ fontSize: '0.825rem', color: 'var(--primary)', fontWeight: 600 }}>
-                        {mentor.profile?.designation} at {mentor.profile?.company}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span className="badge badge-cyan" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
-                      {mentees.length} / {mentor.profile?.max_capacity || 5} Mapped Mentees
-                    </span>
-                    <button onClick={() => setAnalysisUser(mentor)} className="btn btn-secondary btn-sm">
-                      <BarChart2 size={13} /> View Mentor Stats
-                    </button>
-                  </div>
+      {loading ? (
+        <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <RefreshCw size={28} className="spin" style={{ marginBottom: '1rem' }} />
+          <p>Loading Operations Center live matrix...</p>
+        </div>
+      ) : (
+        <div>
+          
+          {/* TAB 1: OVERVIEW & ANALYTICS */}
+          {activeTab === 'dashboard' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
+                <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Total Registered Students</p>
+                  <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)' }}>{analytics?.kpi?.total_students || 0}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)' }}>{analytics?.kpi?.verified_students || 0} Verified</p>
                 </div>
 
-                {mentees.length === 0 ? (
-                  <div style={{ padding: '1rem', background: 'var(--bg-subtle)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-subtle)', fontStyle: 'italic' }}>
-                    Currently has 0 active mentees assigned. ({mentor.profile?.max_capacity || 5} available slots)
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Mapped Active Mentees ({mentees.length}):
-                    </p>
-                    {mentees.map(m => (
-                      <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-subtle)', padding: '0.85rem 1.15rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <User size={18} color="var(--primary)" />
-                          <div>
-                            <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{m.student_name}</p>
-                            <p style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-                              Domain: <strong style={{ color: 'var(--primary)' }}>{m.domain_name}</strong> • Status: <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>ACTIVE</span>
-                            </p>
-                          </div>
-                        </div>
+                <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Total Alumni Mentors</p>
+                  <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-purple)' }}>{analytics?.kpi?.total_alumni || 0}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)' }}>{analytics?.kpi?.verified_alumni || 0} Verified</p>
+                </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
-                            Since {new Date(m.created_at || Date.now()).toLocaleDateString()}
+                <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Active Mentorship Pairs</p>
+                  <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-emerald)' }}>{matrix.length}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Current Pairings</p>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Pending Verification Queue</p>
+                  <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-rose)' }}>{pendingVerifications.length}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--accent-rose)' }}>Requires Action</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1rem' }}>
+                    📊 Session Completion Overview
+                  </h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Total 1-on-1 Sessions Scheduled: <strong>{analytics?.sessions_overview?.total || 0}</strong>
+                  </p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Completed Virtual Sessions: <strong>{analytics?.sessions_overview?.completed || 0}</strong>
+                  </p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: 700 }}>
+                    Completion Rate: {analytics?.kpi?.session_completion_rate || 0}%
+                  </p>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1rem' }}>
+                    🎯 Milestone Progress Track
+                  </h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Total Action Milestones Created: <strong>{analytics?.milestones_overview?.total || 0}</strong>
+                  </p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                    Completed Milestones: <strong>{analytics?.milestones_overview?.completed || 0}</strong>
+                  </p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--accent-purple)', fontWeight: 700 }}>
+                    Milestone Completion Rate: {analytics?.kpi?.milestone_completion_rate || 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: PENDING ID VERIFICATIONS */}
+          {activeTab === 'verifications' && (
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
+                Pending Student & Alumni ID Verifications ({pendingVerifications.length})
+              </h3>
+
+              {pendingVerifications.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No pending ID verifications in queue. All user credentials verified!
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
+                  {pendingVerifications.map((v) => {
+                    const userName = v.user?.name || v.name || 'User Account';
+                    const userEmail = v.user?.email || v.email || 'N/A';
+                    const userRole = v.user?.role || v.role || 'USER';
+                    const targetUserId = v.user_id || v.id;
+                    const dateStr = v.submitted_at || v.created_at;
+                    const dateVal = dateStr ? new Date(dateStr) : new Date();
+                    const validDateStr = isNaN(dateVal.getTime()) ? new Date().toLocaleDateString() : dateVal.toLocaleDateString();
+
+                    return (
+                      <div key={v.id || targetUserId} style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                          <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{userName}</h4>
+                          <span className="badge badge-purple">{userRole}</span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Email: {userEmail}</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Submitted: {validDateStr}</p>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => handleVerifyUser(targetUserId, 'APPROVE')} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                            <Check size={14} /> Approve ID
+                          </button>
+                          <button onClick={() => handleVerifyUser(targetUserId, 'REJECT')} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                            <X size={14} /> Reject
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: ACTIVE MENTORSHIP PAIRINGS */}
+          {activeTab === 'matrix' && (
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
+                Active Mentorship Pairings Matrix ({matrix.length})
+              </h3>
+
+              {matrix.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No active mentorship pairings recorded in database.
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '0.75rem' }}>Student Mentee</th>
+                        <th style={{ padding: '0.75rem' }}>Alumni Mentor</th>
+                        <th style={{ padding: '0.75rem' }}>Domain</th>
+                        <th style={{ padding: '0.75rem' }}>Pairing Status</th>
+                        <th style={{ padding: '0.75rem' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {matrix.map((item) => (
+                        <tr key={item.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
+                          <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {item.student_name}
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{item.student_email}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                            {item.mentor_name}
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{item.mentor_email}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{item.domain_name}</td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span className={`badge ${item.status === 'ACTIVE' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <button onClick={() => setReassignMentorship(item)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+                              Reassign Mentor
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: MENTORSHIP REQUESTS */}
+          {activeTab === 'requests' && (
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
+                All Student Mentorship Requests ({pendingRequests.length})
+              </h3>
+
+              {pendingRequests.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No mentorship requests found.
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '0.75rem' }}>Student Applicant</th>
+                        <th style={{ padding: '0.75rem' }}>Target Mentor</th>
+                        <th style={{ padding: '0.75rem' }}>Domain</th>
+                        <th style={{ padding: '0.75rem' }}>Message</th>
+                        <th style={{ padding: '0.75rem' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingRequests.map((req) => (
+                        <tr key={req.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
+                          <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
+                            {req.student_name}
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{req.student_email}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
+                            {req.mentor_name}
+                            <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{req.mentor_email}</span>
+                          </td>
+                          <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{req.domain_name}</td>
+                          <td style={{ padding: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', maxWidth: '250px' }}>
+                            "{req.message}"
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span className={`badge ${req.status === 'ACCEPTED' ? 'badge-emerald' : req.status === 'REJECTED' ? 'badge-rose' : 'badge-amber'}`}>
+                              {req.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: USER ACCOUNTS & CAPACITY OVERRIDES */}
+          {activeTab === 'users' && (
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
+                User Accounts & Capacity Overrides ({allUsers.length})
+              </h3>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      <th style={{ padding: '0.75rem' }}>User Name</th>
+                      <th style={{ padding: '0.75rem' }}>Email</th>
+                      <th style={{ padding: '0.75rem' }}>Role</th>
+                      <th style={{ padding: '0.75rem' }}>Verification</th>
+                      <th style={{ padding: '0.75rem' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allUsers.map((u) => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
+                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{u.name}</td>
+                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</td>
+                        <td style={{ padding: '0.75rem' }}><span className="badge badge-purple">{u.role}</span></td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span className={`badge ${u.verification_status === 'VERIFIED' ? 'badge-emerald' : 'badge-amber'}`}>
+                            {u.verification_status || 'VERIFIED'}
                           </span>
-                          <button onClick={() => setReassignMentorship(m)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                            <RefreshCw size={12} /> Reassign Mentor
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <button onClick={() => setEditUser(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+                            <Edit size={13} /> Edit Account
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: TECHNICAL DOMAINS & MENTOR REQUESTS */}
+          {activeTab === 'domains' && (
+            <div>
+              {/* Pending Domain Addition Requests */}
+              <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', borderRadius: '16px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Compass size={20} color="var(--primary)" /> Pending Domain Addition Requests from Alumni Mentors ({pendingDomainRequests.length})
+                </h3>
+
+                {pendingDomainRequests.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending domain addition requests.</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+                    {pendingDomainRequests.map((req) => (
+                      <div key={req.id} style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)' }}>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{req.name}</h4>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{req.description || 'No description provided'}</p>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button onClick={() => handleApproveDomainRequest(req.id)} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                            <Check size={14} /> Approve Domain
+                          </button>
+                          <button onClick={() => handleRejectDomainRequest(req.id)} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                            <X size={14} /> Reject
                           </button>
                         </div>
                       </div>
@@ -400,435 +664,68 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                   </div>
                 )}
               </div>
-            ))
-          )}
-        </div>
-      )}
 
-      {/* VIEW 2: PENDING REQUESTS & VERIFICATIONS */}
-      {activeTab === 'requests' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-          <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>
-              Pending ID Card Verifications ({pendingVerifications.length})
-            </h3>
-            {pendingVerifications.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No pending user ID verifications in queue.</p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-                {pendingVerifications.map(u => (
-                  <div key={u.id} style={{ padding: '1rem', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{u.name}</p>
-                      <span className={`badge ${u.role === 'STUDENT' ? 'badge-cyan' : 'badge-purple'}`}>{u.role}</span>
-                    </div>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{u.email}</p>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => setPreviewUser(u)} className="btn btn-secondary btn-sm" style={{ flex: 1 }}>
-                        <FileText size={13} /> Inspect ID Card
-                      </button>
-                      <button onClick={() => handleVerifyAction(u.id, 'APPROVE')} className="btn btn-primary btn-sm">
-                        <Check size={13} /> Approve
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="glass-panel" style={{ padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>
-              Pending Mentorship Applications ({pendingRequests.length})
-            </h3>
-            {pendingRequests.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No pending mentorship applications awaiting response.</p>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)' }}>
-                    <th style={{ padding: '0.75rem' }}>Applicant Mentee</th>
-                    <th style={{ padding: '0.75rem' }}>Target Alumni Mentor</th>
-                    <th style={{ padding: '0.75rem' }}>Domain</th>
-                    <th style={{ padding: '0.75rem' }}>Status</th>
-                    <th style={{ padding: '0.75rem' }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRequests.map(r => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
-                      <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{r.student_name}</td>
-                      <td style={{ padding: '0.75rem', color: 'var(--primary)' }}>{r.mentor_name}</td>
-                      <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{r.domain_name}</td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <span className="badge badge-amber">{r.status}</span>
-                      </td>
-                      <td style={{ padding: '0.75rem' }}>
-                        <button onClick={() => setReassignMentorship(r)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                          <RefreshCw size={12} /> Reassign Mentor
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* VIEW 3: VIRTUAL 1-ON-1 SESSIONS TRACKER */}
-      {activeTab === 'sessions' && (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-            System-Wide 1-on-1 Virtual Sessions Tracker
-          </h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-            Overview of proposed, scheduled, and completed virtual meeting sessions between students and alumni mentors.
-          </p>
-
-          {allSessions.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No virtual meeting sessions scheduled yet.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {allSessions.map(s => (
-                <div key={s.id} style={{ padding: '1rem 1.25rem', background: 'var(--bg-subtle)', borderRadius: '10px', border: '1px solid var(--border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                      <Video size={16} color="var(--primary)" />
-                      <h4 style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{s.topic}</h4>
-                      <span className={`badge ${s.status === 'CONFIRMED' ? 'badge-emerald' : 'badge-amber'}`}>
-                        {s.status}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-                      Student: <strong>{s.student_name}</strong> • Mentor: <strong style={{ color: 'var(--primary)' }}>{s.mentor_name}</strong> ({s.domain_name})
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setActiveVirtualSession(s)}
-                    className="btn btn-primary btn-sm"
-                  >
-                    <Video size={14} /> Launch In-App Video Call
+              {/* Technical Domain Directory List */}
+              <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Technical Domain Directory Management ({domains.length})
+                  </h3>
+                  <button onClick={() => setShowDomainModal(true)} className="btn btn-primary btn-sm">
+                    <Plus size={14} /> Add Domain
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* VIEW 4: DEFAULT DASHBOARD / USER DIRECTORY */}
-      {(activeTab === 'dashboard' || activeTab === 'students' || activeTab === 'alumni' || activeTab === 'domains' || activeTab === 'audit') && (
-        <div>
-          {(activeTab === 'dashboard' || activeTab === 'students') && (
-            <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.75rem' }}>
-              <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Student Management Directory</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)' }}>
-                      <th style={{ padding: '0.75rem' }}>Name & Reg Number</th>
-                      <th style={{ padding: '0.75rem' }}>Email</th>
-                      <th style={{ padding: '0.75rem' }}>Year & Department</th>
-                      <th style={{ padding: '0.75rem' }}>Verification</th>
-                      <th style={{ padding: '0.75rem' }}>Operations</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {studentsList.map(s => (
-                      <tr key={s.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                          {s.name} <br /><span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{s.profile?.reg_number || 'N/A'}</span>
-                        </td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{s.email}</td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>
-                          {s.profile?.academic_year} • {s.profile?.department}
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span className={`badge ${s.verification_status === 'VERIFIED' ? 'badge-emerald' : s.verification_status === 'PENDING' ? 'badge-amber' : 'badge-rose'}`}>
-                            {s.verification_status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem', display: 'flex', gap: '0.35rem' }}>
-                          <button onClick={() => setAnalysisUser(s)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                            <BarChart2 size={12} color="var(--primary)" /> Detailed Analysis
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditUser(s);
-                              setEditForm({ maxCapacity: '5', verification_status: s.verification_status, newPassword: '' });
-                            }}
-                            className="btn btn-secondary btn-sm"
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            <Edit size={12} /> Edit Account
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {(activeTab === 'dashboard' || activeTab === 'alumni') && (
-            <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.75rem' }}>
-              <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Alumni Mentor Directory & Capacity Operations</h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)' }}>
-                      <th style={{ padding: '0.75rem' }}>Mentor Name</th>
-                      <th style={{ padding: '0.75rem' }}>Company & Role</th>
-                      <th style={{ padding: '0.75rem' }}>Mentee Capacity</th>
-                      <th style={{ padding: '0.75rem' }}>Verification</th>
-                      <th style={{ padding: '0.75rem' }}>Operations</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alumniList.map(a => (
-                      <tr key={a.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{a.name}</td>
-                        <td style={{ padding: '0.75rem', color: 'var(--primary)' }}>
-                          {a.profile?.designation} at {a.profile?.company}
-                        </td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>
-                          <span className="badge badge-cyan">{a.profile?.current_capacity || 0} / {a.profile?.max_capacity || 5} Mentees</span>
-                        </td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span className={`badge ${a.verification_status === 'VERIFIED' ? 'badge-emerald' : 'badge-amber'}`}>
-                            {a.verification_status}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem', display: 'flex', gap: '0.35rem' }}>
-                          <button onClick={() => setAnalysisUser(a)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                            <BarChart2 size={12} color="var(--accent-purple)" /> Detailed Analysis
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditUser(a);
-                              const initialCap = (a.profile?.max_capacity && Number(a.profile.max_capacity) > 0) ? Number(a.profile.max_capacity) : 5;
-                              setEditForm({ maxCapacity: String(initialCap), verification_status: a.verification_status, newPassword: '' });
-                            }}
-                            className="btn btn-secondary btn-sm"
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            <Edit size={12} /> Edit Capacity & Status
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'domains' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>Technical Domain Management</h3>
-                <button onClick={() => setShowDomainModal(true)} className="btn btn-primary btn-sm">
-                  <Plus size={14} /> Add New Domain
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                {domains.map(d => (
-                  <div key={d.id} className="glass-panel" style={{ padding: '1.25rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <h4 style={{ fontSize: '1.1rem', color: 'var(--text-main)' }}>{d.name}</h4>
-                      <span className="badge badge-purple">{d.category}</span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {domains.map((d) => (
+                    <div key={d.id} style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{d.name}</h4>
+                      <span className="badge badge-purple" style={{ fontSize: '0.65rem', marginTop: '0.25rem' }}>{d.category || 'Core Engineering'}</span>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{d.description}</p>
                     </div>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>{d.description}</p>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', background: 'var(--bg-subtle)', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-card)' }}>
-                      Students Interested: {d.stats?.interested_students || 0} • Mentors: {d.stats?.available_mentors || 0}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}
 
-          {activeTab === 'audit' && (
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>Administrative Audit Logs</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
-                {auditLogs.map(l => (
-                  <div key={l.id} style={{ padding: '0.85rem 1rem', background: 'var(--bg-subtle)', borderRadius: '8px', border: '1px solid var(--border-card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span className="badge badge-purple" style={{ fontSize: '0.7rem', marginRight: '0.5rem' }}>{l.action}</span>
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>{l.details}</span>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{new Date(l.timestamp).toLocaleString()}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Embedded 1-on-1 Virtual Video Conference Suite Modal */}
-      {activeVirtualSession && (
-        <VirtualMeetingModal
-          session={activeVirtualSession}
-          isOpen={Boolean(activeVirtualSession)}
-          onClose={() => setActiveVirtualSession(null)}
-        />
-      )}
-
-      {/* Detailed Analysis Modal */}
-      {analysisUser && (
-        <div className="modal-overlay" onClick={() => setAnalysisUser(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-              <div>
-                <span className="badge badge-cyan" style={{ marginBottom: '0.25rem' }}>Administrative Analysis Report</span>
-                <h3 style={{ fontSize: '1.4rem', color: 'var(--text-main)' }}>Detailed Profile & Performance Analysis</h3>
-              </div>
-              <button onClick={() => setAnalysisUser(null)} className="btn btn-secondary btn-sm"><X size={16} /></button>
-            </div>
-
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-card)', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <div>
-                  <h4 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>{analysisUser.name}</h4>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{analysisUser.email}</p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <span className={`badge ${analysisUser.role === 'STUDENT' ? 'badge-cyan' : 'badge-purple'}`}>{analysisUser.role}</span>
-                  <span className={`badge ${analysisUser.verification_status === 'VERIFIED' ? 'badge-emerald' : 'badge-amber'}`}>{analysisUser.verification_status}</span>
-                </div>
-              </div>
-
-              {analysisUser.role === 'STUDENT' ? (
-                <div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Register Number:</strong> {analysisUser.profile?.reg_number || 'N/A'}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Academic Year:</strong> {analysisUser.profile?.academic_year || 'N/A'}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Department:</strong> {analysisUser.profile?.department || 'N/A'}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--primary)', marginTop: '0.5rem' }}>
-                    <strong>Career Goals:</strong> {analysisUser.profile?.career_goals || 'Building expertise in Software Engineering.'}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Company & Title:</strong> {analysisUser.profile?.designation} at {analysisUser.profile?.company}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Experience:</strong> {analysisUser.profile?.experience_years} Years (Graduated {analysisUser.profile?.graduation_year})</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '0.35rem' }}><strong>Mentee Capacity:</strong> {analysisUser.profile?.current_capacity || 0} / {analysisUser.profile?.max_capacity || 5} Active Mentees</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--primary)', marginTop: '0.5rem' }}>
-                    <strong>Bio:</strong> {analysisUser.profile?.bio || 'Experienced software mentor.'}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div style={{ textAlign: 'center', background: 'var(--bg-card)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', marginBottom: '1.25rem' }}>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                Uploaded ID Credential Document:
-              </p>
-              <img
-                src={getAssetUrl(analysisUser.role === 'STUDENT' ? analysisUser.profile?.student_id_card_url : analysisUser.profile?.alumni_id_card_url)}
-                alt="Uploaded ID Credential Card"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80';
-                }}
-                style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--border-card)', objectFit: 'cover' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setAnalysisUser(null)} className="btn btn-secondary">Close Analysis</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Review Document Inspection Modal */}
-      {previewUser && (
-        <div className="modal-overlay" onClick={() => setPreviewUser(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>Verify Credential Document: {previewUser.name}</h3>
-              <button onClick={() => setPreviewUser(null)} className="btn btn-secondary btn-sm"><X size={16} /></button>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-              <img
-                src={getAssetUrl(previewUser.role === 'STUDENT' ? previewUser.profile?.student_id_card_url : previewUser.profile?.alumni_id_card_url)}
-                alt="ID Credential Card"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80';
-                }}
-                style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px', border: '1px solid var(--border-card)', objectFit: 'cover' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={() => handleVerifyAction(previewUser.id, 'APPROVE')} className="btn btn-primary" style={{ flex: 1 }}>
-                <Check size={16} /> Approve Verification
-              </button>
-              <button onClick={() => handleVerifyAction(previewUser.id, 'REJECT')} className="btn btn-danger" style={{ flex: 1 }}>
-                <X size={16} /> Reject Application
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
       {/* Edit User Modal */}
       {editUser && (
         <div className="modal-overlay" onClick={() => setEditUser(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Administrative Account Operations: {editUser.name}</h3>
-            <form onSubmit={handleAdminUserUpdate}>
-              <div className="form-group">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1rem' }}>Edit Account: {editUser.name}</h3>
+            <form onSubmit={handleUpdateUserByAdmin}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Verification Status</label>
                 <select
-                  className="form-select"
+                  className="form-input"
                   value={editForm.verification_status}
                   onChange={(e) => setEditForm({ ...editForm, verification_status: e.target.value })}
                 >
                   <option value="VERIFIED">VERIFIED</option>
                   <option value="PENDING">PENDING</option>
-                  <option value="REJECTED">REJECTED / SUSPENDED</option>
+                  <option value="REJECTED">REJECTED</option>
                 </select>
               </div>
 
               {editUser.role === 'ALUMNI' && (
-                <div className="form-group">
-                  <label className="form-label">Mentee Capacity Limit (Slots)</label>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label className="form-label">Max Mentee Capacity Override</label>
                   <input
                     type="number"
                     className="form-input"
                     value={editForm.maxCapacity}
                     onChange={(e) => setEditForm({ ...editForm, maxCapacity: e.target.value })}
-                    required
                   />
                 </div>
               )}
 
-              <div className="form-group">
-                <label className="form-label">Reset Password (Optional)</label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="Leave blank to keep unchanged"
-                  value={editForm.newPassword}
-                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1.25rem' }}>
-                <button type="button" onClick={() => setEditUser(null)} className="btn btn-secondary btn-sm">Cancel</button>
-                <button type="submit" className="btn btn-primary btn-sm">Save Changes</button>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" onClick={() => setEditUser(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Changes</button>
               </div>
             </form>
           </div>
@@ -838,100 +735,99 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       {/* Reassign Mentor Modal */}
       {reassignMentorship && (
         <div className="modal-overlay" onClick={() => setReassignMentorship(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Reassign Mentor for {reassignMentorship.student_name}</h3>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1rem' }}>Reassign Alumni Mentor</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+              Student: <strong>{reassignMentorship.student_name}</strong> • Current Mentor: <strong>{reassignMentorship.mentor_name}</strong>
+            </p>
             <form onSubmit={handleReassignSubmit}>
-              <div className="form-group">
-                <label className="form-label">Select Target Alumni Mentor</label>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Select New Alumni Mentor</label>
                 <select
-                  className="form-select"
+                  className="form-input"
                   value={newMentorId}
                   onChange={(e) => setNewMentorId(e.target.value)}
                   required
                 >
-                  <option value="">-- Choose Verified Mentor --</option>
-                  {alumniList.filter(a => a.verification_status === 'VERIFIED' && a.id !== reassignMentorship.mentor_id).map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.profile?.company} - {a.profile?.current_capacity || 0}/{a.profile?.max_capacity || 5} Mentees)
-                    </option>
+                  <option value="">Select verified mentor...</option>
+                  {alumniUsers.filter(a => String(a.id) !== String(reassignMentorship.mentor_id)).map(a => (
+                    <option key={a.id} value={a.id}>{a.name} ({a.email})</option>
                   ))}
                 </select>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Reassignment Reason / Audit Note</label>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Reason for Reassignment</label>
                 <textarea
-                  className="form-textarea"
-                  rows={3}
-                  placeholder="e.g. Previous mentor requested workload transfer..."
+                  className="form-input"
+                  rows={2}
+                  placeholder="Optional notes for reassignment"
                   value={reassignReason}
                   onChange={(e) => setReassignReason(e.target.value)}
-                  required
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setReassignMentorship(null)} className="btn btn-secondary btn-sm">Cancel</button>
-                <button type="submit" className="btn btn-primary btn-sm">Execute Reassignment</button>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" onClick={() => setReassignMentorship(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Confirm Reassign</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Create Domain Modal */}
+      {/* Add Domain Modal */}
       {showDomainModal && (
         <div className="modal-overlay" onClick={() => setShowDomainModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '1rem' }}>Create Technical Career Domain</h3>
-            <form onSubmit={handleCreateDomain}>
-              <div className="form-group">
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1rem' }}>Add Technical Domain</h3>
+            <form onSubmit={handleCreateDomainSubmit}>
+              <div style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Domain Name</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Distributed Systems & Microservices"
+                  required
                   value={domainForm.name}
                   onChange={(e) => setDomainForm({ ...domainForm, name: e.target.value })}
-                  required
                 />
               </div>
 
-              <div className="form-group">
+              <div style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Category</label>
                 <select
-                  className="form-select"
+                  className="form-input"
                   value={domainForm.category}
                   onChange={(e) => setDomainForm({ ...domainForm, category: e.target.value })}
                 >
                   <option value="Core Engineering">Core Engineering</option>
-                  <option value="Cloud & Infrastructure">Cloud & Infrastructure</option>
-                  <option value="Data & AI">Data & AI</option>
-                  <option value="Security & Systems">Security & Systems</option>
-                  <option value="Mobile & Web">Mobile & Web</option>
+                  <option value="Advanced Tech">Advanced Tech</option>
+                  <option value="Infrastructure">Infrastructure</option>
+                  <option value="Security">Security</option>
+                  <option value="Data">Data</option>
                 </select>
               </div>
 
-              <div className="form-group">
+              <div style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Description</label>
                 <textarea
-                  className="form-textarea"
+                  className="form-input"
                   rows={3}
-                  placeholder="Overview of skill tracks, expectations, and mentorship goals..."
+                  required
                   value={domainForm.description}
                   onChange={(e) => setDomainForm({ ...domainForm, description: e.target.value })}
-                  required
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="button" onClick={() => setShowDomainModal(false)} className="btn btn-secondary btn-sm">Cancel</button>
-                <button type="submit" className="btn btn-primary btn-sm">Create Domain</button>
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                <button type="button" onClick={() => setShowDomainModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Create Domain</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 };

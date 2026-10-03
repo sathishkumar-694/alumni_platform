@@ -45,7 +45,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
         height: '100vh',
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        justifyContent: 'center',
         zIndex: 9999,
         background: 'rgba(15, 23, 42, 0.65)',
         backdropFilter: 'blur(5px)',

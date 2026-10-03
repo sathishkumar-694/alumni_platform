@@ -78,7 +78,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
         height: '100vh',
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        justifyContent: 'center',
         zIndex: 9999
       }}
     >

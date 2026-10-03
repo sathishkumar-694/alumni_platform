@@ -6,7 +6,7 @@ import { authorize, requireVerified } from '../../middleware/role.middleware.js'
 const router = Router();
 
 router.use(verifyJWT);
-router.get('/', authorize('STUDENT'), requireVerified, getRecommendedMentors);
-router.post('/analyze-resume', authorize('STUDENT'), requireVerified, analyzeResume);
+router.get('/', authorize('STUDENT', 'ALUMNI', 'ADMIN'), getRecommendedMentors);
+router.post('/analyze-resume', authorize('STUDENT', 'ALUMNI', 'ADMIN'), analyzeResume);
 
 export default router;

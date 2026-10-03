@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiClient } from '../services/api';
 import { Search, Bell, Sun, Moon, ChevronDown, LogOut, User, Sparkles, Check, ArrowRight, MessageSquare, Calendar, Briefcase, ShieldCheck } from 'lucide-react';
 
 export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni }) => {
@@ -8,117 +9,68 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
-  // Persistent Notification Read State
-  const [readIds, setReadIds] = useState(() => {
+  // Dynamic Real-Time MySQL Notifications
+  const [notifications, setNotifications] = useState([]);
+  const [loadingNotifs, setLoadingNotifs] = useState(false);
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    setLoadingNotifs(true);
     try {
-      const saved = localStorage.getItem('campusbridge_read_notifs');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-
-  // Role-Aware Meaningful Event Notifications
-  const getDynamicNotifications = () => {
-    if (!user) return [];
-
-    if (user.role === 'ALUMNI') {
-      return [
-        {
-          id: 101,
-          type: 'REQUEST',
-          title: '📩 New Mentorship Request Received',
-          desc: 'Student Ashwanth (Biotechnology) requested 1-on-1 mentorship in Software Engineering.',
-          targetTab: 'requests'
-        },
-        {
-          id: 102,
-          type: 'REFERRAL',
-          title: '💼 Student Requested Internal Referral',
-          desc: 'Ashwanth applied for an internal referral for your SDE-1 hiring drive at Google.',
-          targetTab: 'referrals'
-        },
-        {
-          id: 103,
-          type: 'SESSION',
-          title: '📅 1-on-1 Virtual Session Scheduled',
-          desc: 'Mentee proposed 3 time slots for System Design guidance. Click to finalize.',
-          targetTab: 'sessions'
-        }
-      ];
-    } else if (user.role === 'STUDENT') {
-      return [
-        {
-          id: 201,
-          type: 'ACCEPTANCE',
-          title: '🎉 Mentorship Request Accepted!',
-          desc: 'Alumni Mentor Arumugam accepted your mentorship request. You are now paired!',
-          targetTab: 'active_mentorships'
-        },
-        {
-          id: 202,
-          type: 'SESSION',
-          title: '📅 1-on-1 Meeting Time Finalized',
-          desc: 'Your meeting with Arumugam is confirmed for Aug 29. Launch WebRTC video call.',
-          targetTab: 'sessions'
-        },
-        {
-          id: 203,
-          type: 'REFERRAL',
-          title: '💼 New Alumni Job Referral Posted',
-          desc: 'Arumugam posted an internal SDE referral opportunity for Google.',
-          targetTab: 'referrals'
-        }
-      ];
-    } else {
-      return [
-        {
-          id: 301,
-          type: 'VERIFICATION',
-          title: '🛡️ Pending User ID Verifications',
-          desc: 'New student and alumni ID card upload documents are in queue for verification.',
-          targetTab: 'admin_operations'
-        },
-        {
-          id: 302,
-          type: 'ANNOUNCEMENT',
-          title: '📌 University Placement Announcement Published',
-          desc: 'TechCorp placement drive posted to the student feed.',
-          targetTab: 'announcements'
-        }
-      ];
+      const res = await apiClient('/notifications');
+      setNotifications(res.data || []);
+    } catch (err) {
+      console.warn('[TopHeader Notifications Fetch Warning]:', err.message);
+    } finally {
+      setLoadingNotifs(false);
     }
   };
 
-  const baseNotifications = getDynamicNotifications();
-
-  const notifications = baseNotifications.map(n => ({
-    ...n,
-    read: readIds.includes(n.id)
-  }));
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.id]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const handleNotificationClick = (notif) => {
-    const updated = [...new Set([...readIds, notif.id])];
-    setReadIds(updated);
-    localStorage.setItem('campusbridge_read_notifs', JSON.stringify(updated));
-    setShowNotificationPopup(false);
-    if (notif.targetTab) {
-      onNavigate?.(notif.targetTab);
+  const handleToggleNotificationPopup = () => {
+    const nextState = !showNotificationPopup;
+    setShowNotificationPopup(nextState);
+    if (nextState && user) {
+      fetchNotifications();
     }
   };
 
-  const handleMarkAllAsRead = () => {
-    const allIds = baseNotifications.map(n => n.id);
-    setReadIds(allIds);
-    localStorage.setItem('campusbridge_read_notifs', JSON.stringify(allIds));
+  const handleNotificationClick = async (notif) => {
+    if (!user) return;
+    try {
+      await apiClient(`/notifications/${notif.id}/read`, { method: 'PATCH' });
+      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+    } catch (err) {
+      console.warn('[Notification Read Warning]:', err.message);
+    }
+    setShowNotificationPopup(false);
+    if (notif.target_tab || notif.targetTab) {
+      onNavigate?.(notif.target_tab || notif.targetTab);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+    try {
+      await apiClient('/notifications/read-all', { method: 'PATCH' });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.warn('[Mark All Read Warning]:', err.message);
+    }
   };
 
   const notificationRef = useRef(null);
   const userDropdownRef = useRef(null);
 
-  // Auto-close dropdown popups when clicking anywhere outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (notificationRef.current && !notificationRef.current.contains(e.target)) {
@@ -132,7 +84,6 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Theme Toggle State ('light' | 'dark')
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('campusbridge_theme') || 'light';
   });
@@ -146,7 +97,6 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // Keyboard shortcut listener for 'Press / to search'
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
@@ -176,14 +126,18 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
         padding: '0 1.5rem',
         display: 'flex',
         alignItems: 'center',
-        justify: 'space-between',
+        justifyContent: 'space-between',
         position: 'sticky',
         top: 0,
         zIndex: 80
       }}
     >
       {/* Portal Name Header (Left) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '240px', flexShrink: 0 }}>
+      <div
+        onClick={() => onNavigate?.(user ? 'dashboard' : 'home')}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '240px', flexShrink: 0, cursor: 'pointer' }}
+        title="Click to go to Homepage / Dashboard"
+      >
         <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           CampusBridge Portal
         </h2>
@@ -198,241 +152,310 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
               id="global-header-search"
               type="text"
               className="form-input"
-              placeholder="Search domains & mentors (Press / to search)"
+              placeholder="Search mentors, domains, job referrals... (Press / to focus)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchSubmit}
               style={{
                 width: '100%',
-                paddingLeft: '2.3rem',
-                height: '36px',
-                borderRadius: '9999px',
+                paddingLeft: '2.5rem',
+                paddingRight: '2rem',
+                height: '38px',
+                fontSize: '0.85rem',
+                borderRadius: '20px',
                 background: 'var(--bg-subtle)',
-                border: '1px solid var(--border-card)',
-                fontSize: '0.825rem',
-                color: 'var(--text-main)'
+                border: '1px solid var(--border-card)'
               }}
             />
           </div>
         </div>
-      ) : (
-        <div style={{ flex: 1 }} />
-      )}
+      ) : <div style={{ flex: 1 }} />}
 
-      {/* Far Top-Right Corner Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto', flexShrink: 0 }}>
+      {/* Header Actions (Right) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
         
-        {/* Theme Toggle Icon (Sun / Moon) */}
+        {/* Pixel-Perfect Centered Theme Toggle Button */}
         <button
           onClick={toggleTheme}
-          className="btn btn-secondary btn-sm"
-          style={{ border: '1px solid var(--border-card)', background: 'var(--bg-card)', padding: '0.45rem', color: 'var(--text-muted)', borderRadius: '50%' }}
-          title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+          style={{
+            width: '38px',
+            height: '38px',
+            minWidth: '38px',
+            minHeight: '38px',
+            borderRadius: '50%',
+            background: 'var(--bg-subtle)',
+            border: '1px solid var(--border-card)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: 'var(--text-main)',
+            padding: 0,
+            margin: 0,
+            outline: 'none',
+            boxSizing: 'border-box',
+            flexShrink: 0
+          }}
         >
-          {theme === 'light' ? <Sun size={18} color="#d97706" /> : <Moon size={18} color="#38bdf8" />}
+          {theme === 'light' ? (
+            <Moon size={17} style={{ display: 'block', margin: 'auto' }} />
+          ) : (
+            <Sun size={17} color="#f59e0b" style={{ display: 'block', margin: 'auto' }} />
+          )}
         </button>
 
-        {/* Notification Bell */}
-        {user && (
-          <div ref={notificationRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => {
-                setShowNotificationPopup(!showNotificationPopup);
-              }}
-              className="btn btn-secondary btn-sm"
-              style={{ border: '1px solid var(--border-card)', background: 'var(--bg-card)', padding: '0.45rem', color: 'var(--text-muted)', position: 'relative', borderRadius: '50%' }}
-              title="Notifications"
-            >
-              <Bell size={18} />
-              {unreadCount > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '4px',
-                    right: '4px',
-                    width: '8px',
-                    height: '8px',
-                    background: '#ef4444',
-                    borderRadius: '50%',
-                    boxShadow: '0 0 0 2px var(--bg-card)'
-                  }}
-                />
-              )}
-            </button>
-
-            {/* Quick Notification Dropdown Popup */}
-            {showNotificationPopup && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '44px',
-                  right: 0,
-                  width: '350px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-card)',
-                  borderRadius: '12px',
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '1rem',
-                  zIndex: 100
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-card)', paddingBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <p style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-main)' }}>Notifications</p>
-                    {unreadCount > 0 ? (
-                      <span className="badge badge-rose" style={{ fontSize: '0.65rem' }}>{unreadCount} Unread</span>
-                    ) : (
-                      <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>All Read</span>
-                    )}
-                  </div>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={handleMarkAllAsRead}
-                      style={{ border: 'none', background: 'transparent', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
-                    >
-                      Mark all read
-                    </button>
-                  )}
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '300px', overflowY: 'auto' }}>
-                  {notifications.map(notif => (
-                    <div
-                      key={notif.id}
-                      onClick={() => handleNotificationClick(notif)}
-                      style={{
-                        padding: '0.65rem 0.75rem',
-                        background: notif.read ? 'transparent' : 'var(--primary-subtle)',
-                        border: '1px solid',
-                        borderColor: notif.read ? 'var(--border-card)' : 'var(--primary)',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.2rem' }}>
-                        <p style={{ fontSize: '0.825rem', fontWeight: notif.read ? 600 : 700, color: 'var(--text-main)' }}>
-                          {notif.title}
-                        </p>
-                        {!notif.read && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--primary)', flexShrink: 0, marginTop: '4px' }} />}
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                        {notif.desc}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.35rem', color: 'var(--primary)', fontSize: '0.725rem', fontWeight: 600 }}>
-                        Open Page <ArrowRight size={11} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* User Profile Avatar Dropdown Pill */}
         {user ? (
-          <div ref={userDropdownRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowUserDropdown(!showUserDropdown)}
-              className="btn btn-secondary btn-sm"
-              style={{
-                borderRadius: '9999px',
-                padding: '0.2rem 0.75rem 0.2rem 0.35rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.55rem',
-                borderColor: 'var(--border-card)',
-                background: 'var(--bg-subtle)'
-              }}
-            >
-              <div
+          <>
+            {/* Pixel-Perfect Centered Notification Bell Dropdown Button */}
+            <div style={{ position: 'relative' }} ref={notificationRef}>
+              <button
+                onClick={handleToggleNotificationPopup}
                 style={{
-                  width: '30px',
-                  height: '30px',
-                  minWidth: '30px',
+                  width: '38px',
+                  height: '38px',
+                  minWidth: '38px',
+                  minHeight: '38px',
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-                  color: '#ffffff',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-card)',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  justify: 'center',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  lineHeight: '30px',
-                  flexShrink: 0,
-                  overflow: 'hidden'
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  color: 'var(--text-main)',
+                  padding: 0,
+                  margin: 0,
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                  flexShrink: 0
                 }}
               >
-                <span style={{ display: 'inline-block', lineHeight: '30px', textAlign: 'center' }}>
-                  {userInitial}
-                </span>
-              </div>
-
-              <span style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                {user.name}
-              </span>
-
-              <ChevronDown size={14} color="var(--text-subtle)" />
-            </button>
-
-            {/* Dropdown Menu */}
-            {showUserDropdown && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '48px',
-                  right: 0,
-                  width: '220px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-card)',
-                  borderRadius: '10px',
-                  boxShadow: 'var(--shadow-lg)',
-                  padding: '0.5rem',
-                  zIndex: 100
-                }}
-              >
-                <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-card)', marginBottom: '0.35rem' }}>
-                  <p style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)' }}>{user.name}</p>
-                  <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)' }}>{user.email}</p>
-                  <span className={`badge ${user.role === 'ADMIN' ? 'badge-purple' : user.role === 'ALUMNI' ? 'badge-cyan' : 'badge-emerald'}`} style={{ marginTop: '0.35rem', fontSize: '0.685rem' }}>
-                    {user.role}
+                <Bell size={17} style={{ display: 'block', margin: 'auto' }} />
+                {unreadCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '2px',
+                      right: '2px',
+                      background: '#ef4444',
+                      color: '#ffffff',
+                      fontSize: '0.65rem',
+                      fontWeight: 800,
+                      borderRadius: '50%',
+                      width: '16px',
+                      height: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 0 0 2px var(--bg-card)',
+                      lineHeight: 1
+                    }}
+                  >
+                    {unreadCount}
                   </span>
-                </div>
+                )}
+              </button>
 
-                <button
-                  onClick={() => {
-                    setShowUserDropdown(false);
-                    logout();
-                  }}
+              {/* Notifications Popup Card */}
+              {showNotificationPopup && (
+                <div
                   style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem 0.75rem',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: 'transparent',
-                    color: '#ef4444',
-                    fontSize: '0.825rem',
-                    fontWeight: 600,
-                    cursor: 'pointer'
+                    position: 'absolute',
+                    right: 0,
+                    top: '48px',
+                    width: '360px',
+                    maxHeight: '440px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '16px',
+                    boxShadow: 'var(--shadow-lg)',
+                    padding: '1rem',
+                    zIndex: 100,
+                    overflowY: 'auto'
                   }}
                 >
-                  <LogOut size={14} color="#ef4444" /> Sign Out
-                </button>
-              </div>
-            )}
-          </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-card)' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Bell size={16} color="var(--primary)" /> MySQL Notifications
+                    </h4>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {notifications.length > 0 ? (
+                      notifications.map((notif) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => handleNotificationClick(notif)}
+                          style={{
+                            padding: '0.75rem',
+                            borderRadius: '10px',
+                            background: notif.read ? 'transparent' : 'var(--bg-subtle)',
+                            borderLeft: notif.read ? '3px solid transparent' : '3px solid var(--primary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <p style={{ fontSize: '0.825rem', fontWeight: notif.read ? 600 : 800, color: 'var(--text-main)' }}>
+                            {notif.title}
+                          </p>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.3 }}>
+                            {notif.desc}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>
+                        No notifications found in database.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Authenticated User Profile Pill with 100% Dead-Center Avatar Circle */}
+            <div style={{ position: 'relative' }} ref={userDropdownRef}>
+              <button
+                onClick={() => setShowUserDropdown(prev => !prev)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.3rem 0.75rem 0.3rem 0.3rem',
+                  borderRadius: '24px',
+                  background: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-card)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    minWidth: '32px',
+                    minHeight: '32px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    color: '#ffffff',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    boxShadow: '0 2px 4px rgba(79, 70, 229, 0.3)',
+                    flexShrink: 0,
+                    margin: 0,
+                    padding: 0,
+                    overflow: 'hidden'
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', textAlign: 'center', lineHeight: 1 }}>
+                    {userInitial}
+                  </span>
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.01em' }}>
+                  {user.name}
+                </span>
+                <ChevronDown size={14} color="var(--text-subtle)" />
+              </button>
+
+              {/* User Account Dropdown Menu */}
+              {showUserDropdown && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: '44px',
+                    width: '200px',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '14px',
+                    boxShadow: 'var(--shadow-lg)',
+                    padding: '0.5rem',
+                    zIndex: 100
+                  }}
+                >
+                  <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-card)', marginBottom: '0.35rem' }}>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-main)' }}>{user.name}</p>
+                    <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)' }}>{user.email}</p>
+                    <span className="badge badge-purple" style={{ fontSize: '0.65rem', marginTop: '0.35rem' }}>
+                      {user.role}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      onNavigate?.('profile');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'var(--text-main)',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <User size={15} /> My Profile
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowUserDropdown(false);
+                      logout();
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      background: 'none',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ef4444',
+                      fontSize: '0.825rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <LogOut size={15} /> Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button onClick={onOpenLogin} className="btn btn-primary btn-sm" style={{ background: '#0284c7', borderColor: '#0284c7' }}>
-              <Sparkles size={14} /> 1-Click Demo Login
+          /* Public Unauthenticated Header Action Buttons */
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={onOpenLogin} className="btn btn-secondary btn-sm">
+              Sign In
+            </button>
+            <button onClick={onOpenRegisterStudent} className="btn btn-primary btn-sm">
+              Join as Student
+            </button>
+            <button onClick={onOpenRegisterAlumni} className="btn btn-secondary btn-sm" style={{ borderColor: 'var(--primary)' }}>
+              Join as Alumni
             </button>
           </div>
         )}
-
       </div>
     </header>
   );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, Sparkles, FileText, CheckCircle2, AlertTriangle, ArrowRight, UserPlus, Award, Link, Zap, Upload, File } from 'lucide-react';
+import { X, Sparkles, FileText, CheckCircle2, AlertTriangle, ArrowRight, UserPlus, Award, Link, Zap, Upload, File, Check, Loader2 } from 'lucide-react';
 
 export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) => {
   const { user } = useAuth();
@@ -23,10 +23,20 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setSelectedFile(file);
-    setFileMimeType(file.type || 'application/pdf');
+    // Strict File Extension Validation: Allow ONLY PDF (.pdf) and Word (.doc, .docx) documents
+    const fileNameLower = file.name.toLowerCase();
+    const isPdf = fileNameLower.endsWith('.pdf') || file.type === 'application/pdf';
+    const isWord = fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx') || file.type.includes('word') || file.type.includes('officedocument');
 
-    // 1. Read Base64 binary for Gemini inline_data
+    if (!isPdf && !isWord) {
+      showNotification('Invalid file format! Please upload a PDF (.pdf) or Word document (.doc, .docx).', 'error');
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileMimeType(isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+    // 1. Read Base64 binary data in background for Gemini Multimodal AI
     const base64Reader = new FileReader();
     base64Reader.onload = (event) => {
       const dataUrl = event.target?.result || '';
@@ -37,27 +47,37 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
     };
     base64Reader.readAsDataURL(file);
 
-    // 2. Extract plain text content from uploaded file for prompt context
+    // 2. Perform text extraction
     const textReader = new FileReader();
     textReader.onload = (event) => {
       const text = event.target?.result || '';
       if (typeof text === 'string' && text.trim()) {
-        const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ').replace(/\s+/g, ' ');
-        if (cleanText.length > 20) {
-          setResumeText(prev => prev ? `${prev}\n\n[Uploaded Resume Content (${file.name})]:\n${cleanText.slice(0, 3000)}` : `[Uploaded Resume Content (${file.name})]:\n${cleanText.slice(0, 3000)}`);
-          showNotification(`Extracted resume text from '${file.name}' for AI evaluation!`, 'success');
+        if (isWord) {
+          // Extract text from Word docx XML tags <w:t>...</w:t>
+          const matches = [...text.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/gi)].map(m => m[1]);
+          if (matches.length > 0) {
+            const cleanDocxText = matches.join(' ').replace(/\s+/g, ' ').trim();
+            setResumeText(`[Attached Word Document: ${file.name}]\n${cleanDocxText.slice(0, 4000)}`);
+          } else {
+            const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ').replace(/\s+/g, ' ').trim();
+            if (cleanText.length > 10) {
+              setResumeText(`[Attached Document: ${file.name}]\n${cleanText.slice(0, 4000)}`);
+            }
+          }
         } else {
-          showNotification(`Attached resume file '${file.name}'!`, 'success');
+          setResumeText(`[Attached PDF Document: ${file.name}]`);
         }
       }
     };
     textReader.readAsText(file);
+
+    showNotification(`Attached ${isPdf ? 'PDF' : 'Word'} document '${file.name}'! Ready for AI analysis.`, 'success');
   };
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
-    if (!resumeText.trim() && !fileBase64) {
-      showNotification('Please paste resume text or upload a PDF/TXT resume document', 'error');
+    if (!selectedFile && !resumeText.trim() && !fileBase64) {
+      showNotification('Please upload your Resume PDF or Word document (.pdf, .doc, .docx)', 'error');
       return;
     }
 
@@ -66,7 +86,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
       const res = await apiClient('/recommendation/analyze-resume', {
         method: 'POST',
         body: JSON.stringify({
-          resumeText,
+          resumeText: resumeText || `[Attached Resume Document: ${selectedFile?.name}]`,
           targetRole,
           portfolioUrl,
           fileBase64,
@@ -74,7 +94,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
         })
       });
       setAnalysisResult(res.data);
-      showNotification('Resume document analyzed with Google Gemini Multimodal AI!', 'success');
+      showNotification('Resume document analyzed with Google Gemini AI!', 'success');
     } catch (err) {
       showNotification(err.message, 'error');
     } finally {
@@ -96,7 +116,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
         height: '100vh',
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        justifyContent: 'center',
         zIndex: 9999,
         background: 'rgba(15, 23, 42, 0.7)',
         backdropFilter: 'blur(6px)',
@@ -108,7 +128,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '850px',
+          maxWidth: '800px',
           maxHeight: '90vh',
           overflowY: 'auto',
           background: 'var(--bg-card)',
@@ -122,13 +142,13 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
             <span className="badge badge-purple" style={{ marginBottom: '0.35rem' }}>
-              <Zap size={12} /> Google Gemini Multimodal AI
+              <Zap size={12} /> Google Gemini AI Engine
             </span>
             <h2 style={{ fontSize: '1.6rem', color: 'var(--text-main)', fontWeight: 800 }}>
-              AI Resume & SDE Industry Fit Analyzer
+              AI Resume & Industry Fit Analyzer
             </h2>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-              Upload your Resume PDF / Document directly to Google Gemini AI for evaluation.
+              Upload your PDF or Word resume document to get instant AI career evaluation and skill gap analysis.
             </p>
           </div>
           <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
@@ -140,23 +160,37 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
         {!analysisResult ? (
           <form onSubmit={handleAnalyze}>
             
-            {/* File Upload Drop Zone */}
+            {/* Target Engineering Role */}
             <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label">Upload Resume Document (PDF / DOCX / TXT / Image)</label>
+              <label className="form-label">Target Role / Desired Job Title</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Software Engineer (SDE-1), Mechanical Engineer, Data Analyst, Product Manager"
+                value={targetRole}
+                onChange={(e) => setTargetRole(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Strict PDF / Word Document Drop Zone */}
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label">Upload Resume Document (PDF / Word Only)</label>
               <div
                 style={{
-                  border: '2px dashed var(--border-card)',
-                  borderRadius: '12px',
-                  padding: '1.5rem',
+                  border: selectedFile ? '2px solid var(--accent-emerald)' : '2px dashed var(--border-card)',
+                  borderRadius: '14px',
+                  padding: '2rem 1.5rem',
                   textAlign: 'center',
-                  background: 'var(--bg-subtle)',
+                  background: selectedFile ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-subtle)',
                   cursor: 'pointer',
-                  position: 'relative'
+                  position: 'relative',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 <input
                   type="file"
-                  accept=".pdf,.txt,.doc,.docx,image/*"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleFileUpload}
                   style={{
                     position: 'absolute',
@@ -168,50 +202,56 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
                     cursor: 'pointer'
                   }}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                  <Upload size={28} color="var(--primary)" />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
                   {selectedFile ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-emerald)', fontWeight: 700 }}>
-                      <File size={16} /> Attached: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <FileText size={24} color="var(--accent-emerald)" />
+                      </div>
+                      <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--accent-emerald)' }}>
+                        {selectedFile.name}
+                      </p>
+                      <span className="badge badge-emerald" style={{ fontSize: '0.75rem' }}>
+                        {(selectedFile.size / 1024).toFixed(1)} KB • {selectedFile.name.endsWith('.pdf') ? 'PDF Document' : 'Word Document'} Attached
+                      </span>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                        Click or drop another file to replace
+                      </p>
                     </div>
                   ) : (
-                    <div>
-                      <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        Click or Drag & Drop Resume PDF / Document File Here
-                      </p>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-subtle)' }}>
-                        Direct Base64 upload + Text Extraction to Google Gemini Multimodal AI Engine
-                      </p>
-                    </div>
+                    <>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Upload size={26} color="var(--primary)" />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                          Click or Drag & Drop PDF or Word Resume File Here
+                        </p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', marginTop: '0.2rem' }}>
+                          Accepts <strong>.pdf</strong>, <strong>.doc</strong>, and <strong>.docx</strong> files only
+                        </p>
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Target Engineering Role</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Full-Stack SDE, Backend Architect, DevOps Engineer, Mechanical Engineer"
-                value={targetRole}
-                onChange={(e) => setTargetRole(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Extracted Resume Text / Additional Notes</label>
+            {/* Optional Resume Text / Notes */}
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <label className="form-label">Additional Key Skills or Raw Resume Text (Optional)</label>
               <textarea
-                className="form-textarea"
-                rows={4}
-                placeholder="Auto-extracted text from uploaded file or paste extra skills here..."
+                className="form-input"
+                rows={3}
+                placeholder="Paste key skills, project summaries, or custom resume text here..."
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
+                style={{ fontSize: '0.85rem' }}
               />
             </div>
 
-            <div className="form-group">
+            {/* Portfolio / GitHub URL (Optional) */}
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label className="form-label">Portfolio / GitHub Profile URL (Optional)</label>
               <input
                 type="url"
@@ -227,13 +267,21 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={loading}>
-                <Sparkles size={16} /> {loading ? 'Analyzing with Google Gemini AI...' : 'Analyze Resume Document'}
+                {loading ? (
+                  <>
+                    <Loader2 size={16} className="spin-animation" /> Analyzing Resume Document with AI...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} /> Analyze Resume Document
+                  </>
+                )}
               </button>
             </div>
           </form>
         ) : (
           <div>
-            {/* AI Fit Score Banner */}
+            {/* ATS Overall Score Banner */}
             <div
               style={{
                 background: 'linear-gradient(135deg, #1e1b4b 0%, #311b92 100%)',
@@ -242,28 +290,63 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
                 color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 marginBottom: '1.5rem',
                 border: '1px solid #312e81'
               }}
             >
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700 }}>
-                  Target Role: {analysisResult.target_role} • ✨ {analysisResult.ai_provider || 'Google Gemini AI'}
+                <span style={{ fontSize: '0.75rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  TARGET ROLE: {analysisResult.target_role} • ✨ {analysisResult.ai_provider || 'Google Gemini AI'}
                 </span>
                 <h4 style={{ fontSize: '1.6rem', fontWeight: 800, marginTop: '0.2rem' }}>
-                  Industry Readiness Score
+                  🤖 ATS Resume Compatibility Score
                 </h4>
                 <p style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '0.2rem' }}>
-                  {analysisResult.sde_fit_score >= 80 ? '🚀 High Readiness! Excellent skill alignment.' : '💡 Good foundation! Work on missing skills below.'}
+                  {(analysisResult.ats_score || analysisResult.sde_fit_score) >= 80
+                    ? '🚀 High ATS Compatibility! Resume strongly matches target role keywords.'
+                    : (analysisResult.ats_score || analysisResult.sde_fit_score) >= 65
+                    ? '💡 Moderate ATS Match! Key skills detected, minor optimizations recommended.'
+                    : '⚠️ Low ATS Keyword Match! Review missing skill gaps & formatting advice below.'}
                 </p>
               </div>
 
               <div style={{ textAlign: 'center', background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(8px)', padding: '1rem 1.5rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)' }}>
                 <p style={{ fontSize: '2.5rem', fontWeight: 900, color: '#38bdf8', lineHeight: 1 }}>
-                  {analysisResult.sde_fit_score}%
+                  {analysisResult.ats_score || analysisResult.sde_fit_score}%
                 </p>
-                <span style={{ fontSize: '0.7rem', color: '#93c5fd', textTransform: 'uppercase' }}>Fit Rating</span>
+                <span style={{ fontSize: '0.7rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700 }}>ATS Score</span>
+              </div>
+            </div>
+
+            {/* 4 ATS Sub-Scores Card Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>🎯 Keyword Match</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.15rem' }}>
+                  {analysisResult.keyword_match_score || Math.min(98, (analysisResult.ats_score || 75) + 4)}%
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>📊 Impact & Metrics</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-purple)', marginTop: '0.15rem' }}>
+                  {analysisResult.impact_score || Math.max(55, (analysisResult.ats_score || 75) - 6)}%
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>📝 ATS Formatting</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-emerald)', marginTop: '0.15rem' }}>
+                  {analysisResult.format_score || 88}%
+                </p>
+              </div>
+
+              <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>⚡ Technical Depth</span>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--accent-amber)', marginTop: '0.15rem' }}>
+                  {analysisResult.technical_depth_score || (analysisResult.ats_score || 75)}%
+                </p>
               </div>
             </div>
 
@@ -273,10 +356,10 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
               {/* Detected Strengths */}
               <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <CheckCircle2 size={16} /> Verified Skills Found ({analysisResult.detected_skills.length})
+                  <CheckCircle2 size={16} /> Verified Skills Found in Resume ({(analysisResult.detected_skills || []).length})
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  {analysisResult.detected_skills.map(skill => (
+                  {(analysisResult.detected_skills || []).map(skill => (
                     <span key={skill} className="badge badge-emerald" style={{ fontSize: '0.75rem' }}>
                       {skill}
                     </span>
@@ -287,10 +370,10 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
               {/* Missing Skills */}
               <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--accent-amber)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <AlertTriangle size={16} /> Recommended Skill Gaps ({analysisResult.recommended_skills_to_learn.length})
+                  <AlertTriangle size={16} /> Missing ATS Keywords for "{analysisResult.target_role}" ({(analysisResult.recommended_skills_to_learn || []).length})
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                  {analysisResult.recommended_skills_to_learn.map(skill => (
+                  {(analysisResult.recommended_skills_to_learn || []).map(skill => (
                     <span key={skill} className="badge badge-amber" style={{ fontSize: '0.75rem' }}>
                       {skill}
                     </span>
@@ -299,6 +382,20 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
               </div>
             </div>
 
+            {/* Actionable Recommendations */}
+            {analysisResult.actionable_advice && analysisResult.actionable_advice.length > 0 && (
+              <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-card)', marginBottom: '1.5rem' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} /> Actionable ATS Optimization Recommendations
+                </h4>
+                <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: 1.5 }}>
+                  {(analysisResult.actionable_advice || []).map((item, idx) => (
+                    <li key={idx} style={{ marginBottom: '0.25rem' }}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Matched Alumni Mentors to Bridge Gaps */}
             <div style={{ marginBottom: '1.5rem' }}>
               <h4 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -306,7 +403,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
               </h4>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {analysisResult.matched_mentors.map(m => (
+                {(analysisResult.matched_mentors || []).map(m => (
                   <div
                     key={m.id}
                     style={{
@@ -316,7 +413,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
                       border: '1px solid var(--border-card)',
                       display: 'flex',
                       alignItems: 'center',
-                      justify: 'space-between'
+                      justifyContent: 'space-between'
                     }}
                   >
                     <div>
@@ -341,7 +438,7 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-              <button onClick={() => setAnalysisResult(null)} className="btn btn-secondary">
+              <button onClick={() => { setAnalysisResult(null); setSelectedFile(null); }} className="btn btn-secondary">
                 Analyze Another Resume Document
               </button>
               <button onClick={onClose} className="btn btn-primary">

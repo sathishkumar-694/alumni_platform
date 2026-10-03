@@ -216,7 +216,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         zIndex: 99999,
         display: 'flex',
         alignItems: 'center',
-        justify: 'center',
+        justifyContent: 'center',
         padding: '0.5rem'
       }}
     >
@@ -247,7 +247,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
             padding: '0 1.25rem',
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             flexShrink: 0
           }}
         >
@@ -478,7 +478,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
             padding: '0 1.5rem',
             display: 'flex',
             alignItems: 'center',
-            justify: 'space-between',
+            justifyContent: 'space-between',
             flexShrink: 0
           }}
         >

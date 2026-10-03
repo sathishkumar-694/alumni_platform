@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
+import { RequestDomainModal } from './RequestDomainModal';
 import {
   Code,
   Layers,
@@ -22,7 +23,10 @@ import {
   X,
   ChevronRight,
   AlertTriangle,
-  Sparkles
+  Sparkles,
+  Compass,
+  Check,
+  Trash2
 } from 'lucide-react';
 
 const ICON_MAP = {
@@ -45,7 +49,9 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
-  // Initialize student/alumni domain interests directly from user context (Frame 1 0ms instant display)
+  const [isRequestDomainOpen, setIsRequestDomainOpen] = useState(false);
+
+  // Student domain interests & Alumni expertise tracks
   const [studentInterests, setStudentInterests] = useState(() => {
     return user?.profile?.interests || user?.interests || [];
   });
@@ -54,7 +60,6 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
     return user?.profile?.expertise || user?.expertise || [];
   });
 
-  // Sync user context when user object changes
   useEffect(() => {
     if (user?.profile?.interests) {
       setStudentInterests(user.profile.interests);
@@ -64,13 +69,8 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
     }
   }, [user]);
 
-  // Confirmation modal state for domain action (Add/Remove)
-  const [confirmDomainModal, setConfirmDomainModal] = useState(null); // { domain, actionType: 'ADD' | 'REMOVE', roleType: 'STUDENT' | 'ALUMNI' }
-
-  // Modal for domain mentors
-  const [selectedDomainModal, setSelectedDomainModal] = useState(null);
-  const [domainMentors, setDomainMentors] = useState([]);
-  const [loadingMentors, setLoadingMentors] = useState(false);
+  // Confirmation modal state for removing domain ({ domain, roleType: 'STUDENT' | 'ALUMNI' })
+  const [confirmRemoveModal, setConfirmRemoveModal] = useState(null);
 
   const fetchDomains = async () => {
     try {
@@ -83,30 +83,11 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
     }
   };
 
-  const fetchUserProfiles = async () => {
-    if (!user) return;
-    try {
-      if (user.role === 'STUDENT') {
-        const studentRes = await apiClient('/users/me');
-        if (studentRes.data?.profile?.interests) {
-          setStudentInterests(studentRes.data.profile.interests);
-        }
-      } else if (user.role === 'ALUMNI') {
-        const alumniRes = await apiClient('/users/me');
-        if (alumniRes.data?.profile?.expertise) {
-          setAlumniExpertise(alumniRes.data.profile.expertise);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load user profiles:', err);
-    }
-  };
-
   useEffect(() => {
     fetchDomains();
-    fetchUserProfiles();
-  }, [user]);
+  }, []);
 
+  // 1. Student Track Interest Handlers
   const executeToggleStudentInterest = async (domainId) => {
     const isCurrentlyInterested = studentInterests.includes(domainId);
     const updated = isCurrentlyInterested
@@ -116,11 +97,11 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
     setStudentInterests(updated);
 
     try {
-      const res = await apiClient(`/domains/${domainId}/interest`, { method: 'POST' });
+      const res = await apiClient(`/domains/${domainId}/interests`, { method: 'POST' });
       if (res.data?.interests) {
         setStudentInterests(res.data.interests);
       }
-      showNotification(res.message || (isCurrentlyInterested ? 'Removed domain interest' : 'Added domain interest'), 'success');
+      showNotification(res.message || (isCurrentlyInterested ? 'Removed domain interest' : 'Added to your domain interests!'), 'success');
       fetchDomains();
     } catch (err) {
       setStudentInterests(studentInterests);
@@ -131,13 +112,15 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
   const handleStudentInterestClick = (domain, e) => {
     e.stopPropagation();
     const isCurrentlyInterested = studentInterests.includes(domain.id);
-    setConfirmDomainModal({
-      domain,
-      actionType: isCurrentlyInterested ? 'REMOVE' : 'ADD',
-      roleType: 'STUDENT'
-    });
+    if (isCurrentlyInterested) {
+      // Open confirmation popup modal before removing
+      setConfirmRemoveModal({ domain, roleType: 'STUDENT' });
+    } else {
+      executeToggleStudentInterest(domain.id);
+    }
   };
 
+  // 2. Mentor Offer Mentorship Handlers
   const executeToggleAlumniExpertise = async (domainId) => {
     const isCurrentlyExpert = alumniExpertise.includes(domainId);
     const updated = isCurrentlyExpert
@@ -151,7 +134,7 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
       if (res.data?.expertise) {
         setAlumniExpertise(res.data.expertise);
       }
-      showNotification(res.message || (isCurrentlyExpert ? 'Removed mentorship track' : 'Added mentorship track'), 'success');
+      showNotification(res.message || (isCurrentlyExpert ? 'Removed mentorship track' : 'Mentorship track activated! Students can now connect with you in this domain.'), 'success');
       fetchDomains();
     } catch (err) {
       setAlumniExpertise(alumniExpertise);
@@ -162,40 +145,27 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
   const handleAlumniExpertiseClick = (domain, e) => {
     e.stopPropagation();
     const isCurrentlyExpert = alumniExpertise.includes(domain.id);
-    setConfirmDomainModal({
-      domain,
-      actionType: isCurrentlyExpert ? 'REMOVE' : 'ADD',
-      roleType: 'ALUMNI'
-    });
+    if (isCurrentlyExpert) {
+      // Open confirmation popup modal before removing
+      setConfirmRemoveModal({ domain, roleType: 'ALUMNI' });
+    } else {
+      executeToggleAlumniExpertise(domain.id);
+    }
   };
 
-  const handleConfirmAction = () => {
-    if (!confirmDomainModal) return;
-    const { domain, roleType } = confirmDomainModal;
-
+  const handleConfirmRemove = () => {
+    if (!confirmRemoveModal) return;
+    const { domain, roleType } = confirmRemoveModal;
     if (roleType === 'STUDENT') {
       executeToggleStudentInterest(domain.id);
     } else if (roleType === 'ALUMNI') {
       executeToggleAlumniExpertise(domain.id);
     }
-
-    setConfirmDomainModal(null);
+    setConfirmRemoveModal(null);
   };
 
-  const handleOpenDomainMentors = async (domain) => {
-    setSelectedDomainModal(domain);
-    setLoadingMentors(true);
-    try {
-      const res = await apiClient(`/domains/${domain.id}/mentors`);
-      setDomainMentors(res.data || []);
-    } catch (err) {
-      showNotification('Failed to load domain mentors', 'error');
-    } finally {
-      setLoadingMentors(false);
-    }
-  };
+  const categories = ['ALL', ...new Set(domains.map(d => d.category || 'General'))];
 
-  const categories = ['ALL', ...new Set(domains.map(d => d.category))];
   const filteredDomains = selectedCategory === 'ALL'
     ? domains
     : domains.filter(d => d.category === selectedCategory);
@@ -213,15 +183,23 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
         <div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>Technical Domain Directory</h2>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Explore technical domains, discover verified alumni mentors, and select your career interest.
+            Explore technical domains, discover verified alumni mentors, and select your career interest or mentorship tracks.
           </p>
         </div>
 
-        {user?.role === 'ADMIN' && (
-          <button onClick={onOpenCreateDomain} className="btn btn-primary" style={{ background: '#0284c7', borderColor: '#0284c7' }}>
-            <Plus size={16} /> Add Technical Domain
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {user && (user.role === 'ALUMNI' || user.role === 'STUDENT') && (
+            <button onClick={() => setIsRequestDomainOpen(true)} className="btn btn-secondary" style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+              <Plus size={16} /> Request New Technical Domain
+            </button>
+          )}
+
+          {user?.role === 'ADMIN' && (
+            <button onClick={onOpenCreateDomain} className="btn btn-primary" style={{ background: '#0284c7', borderColor: '#0284c7' }}>
+              <Plus size={16} /> Add Technical Domain
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Category Filter Pills */}
@@ -249,104 +227,93 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
           <p>Loading technical domain directory...</p>
         </div>
       ) : filteredDomains.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          No technical domains found in this category.
+        <div style={{ textAlign: 'center', padding: '4rem', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-card)' }}>
+          <Compass size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
+          <h3>No domains found</h3>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Click "+ Request New Technical Domain" to propose a domain.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
           {filteredDomains.map(domain => {
-            const IconComponent = ICON_MAP[domain.icon] || Code;
-            const isStudentInterest = studentInterests.includes(domain.id);
-            const isAlumniExpertise = alumniExpertise.includes(domain.id);
+            const IconComp = ICON_MAP[domain.icon] || Code;
+            const isStudentInterested = studentInterests.includes(domain.id);
+            const isAlumniExpert = alumniExpertise.includes(domain.id);
 
             return (
               <div
                 key={domain.id}
-                className="glass-panel glass-panel-glow"
-                onClick={() => handleOpenDomainMentors(domain)}
                 style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-card)',
+                  borderRadius: '16px',
                   padding: '1.5rem',
-                  cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'space-between',
-                  background: 'var(--bg-card)',
-                  border: isStudentInterest ? '2px solid var(--primary)' : isAlumniExpertise ? '2px solid var(--accent-purple)' : '1px solid var(--border-card)'
+                  justifyContent: 'space-between',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <div style={{ background: 'var(--primary-subtle)', padding: '0.65rem', borderRadius: '10px', display: 'inline-flex', color: 'var(--primary)' }}>
-                      <IconComponent size={24} color="var(--primary)" />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IconComp size={22} color="var(--primary)" />
                     </div>
-
-                    <div style={{ display: 'flex', gap: '0.35rem' }}>
-                      <span className="badge badge-purple">{domain.category}</span>
-                      {isStudentInterest && (
-                        <span className="badge badge-emerald">
-                          <BookmarkCheck size={10} /> Interested
-                        </span>
-                      )}
-                      {isAlumniExpertise && (
-                        <span className="badge badge-cyan">
-                          <Award size={10} /> Expert
-                        </span>
-                      )}
-                    </div>
+                    <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+                      {domain.category || 'Core Engineering'}
+                    </span>
                   </div>
 
-                  <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    {domain.name} <ChevronRight size={16} color="var(--primary)" />
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                    {domain.name}
                   </h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+                  <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
                     {domain.description}
                   </p>
                 </div>
 
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', textAlign: 'center', marginBottom: '1rem' }}>
-                    <div style={{ background: 'var(--bg-subtle)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}><Users size={12} /> Students</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)' }}>{domain.stats?.interested_students || 0}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '1rem', borderTop: '1px solid var(--border-card)' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-subtle)' }}>
+                      <strong>{domain.stats?.available_mentors || 1}</strong> Mentors Offering Guidance
                     </div>
 
-                    <div style={{ background: 'var(--bg-subtle)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}><Award size={12} /> Mentors</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{domain.stats?.available_mentors || 0}</p>
-                    </div>
-
-                    <div style={{ background: 'var(--bg-subtle)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}><CheckCircle2 size={12} /> Milestone %</p>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-emerald)' }}>
-                        {domain.stats?.milestone_completion_rate || 0}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ paddingTop: '0.85rem', borderTop: '1px solid var(--border-card)', display: 'flex', gap: '0.5rem' }}>
+                    {/* STUDENT ACTION BUTTON */}
                     {user?.role === 'STUDENT' && (
                       <button
                         onClick={(e) => handleStudentInterestClick(domain, e)}
-                        className={`btn btn-sm ${isStudentInterest ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ width: '100%' }}
+                        className={`btn btn-sm ${isStudentInterested ? 'btn-secondary' : 'btn-primary'}`}
+                        style={{
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem'
+                        }}
                       >
-                        {isStudentInterest ? <><BookmarkCheck size={14} /> Selected Interest</> : <><Plus size={14} /> Add Interest</>}
+                        {isStudentInterested ? <CheckCircle2 size={14} color="var(--accent-emerald)" /> : <Plus size={14} />}
+                        {isStudentInterested ? 'Interested' : 'Track Interest'}
                       </button>
                     )}
 
+                    {/* ALUMNI MENTOR ACTION BUTTON */}
                     {user?.role === 'ALUMNI' && (
                       <button
                         onClick={(e) => handleAlumniExpertiseClick(domain, e)}
-                        className={`btn btn-sm ${isAlumniExpertise ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ width: '100%' }}
+                        className={`btn btn-sm ${isAlumniExpert ? 'btn-secondary' : 'btn-primary'}`}
+                        style={{
+                          fontSize: '0.75rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.35rem',
+                          background: isAlumniExpert ? 'var(--bg-subtle)' : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          borderColor: isAlumniExpert ? 'var(--border-card)' : '#059669',
+                          color: isAlumniExpert ? 'var(--accent-emerald)' : '#ffffff'
+                        }}
                       >
-                        {isAlumniExpertise ? <><Award size={14} /> Active Track</> : <><Plus size={14} /> Offer Mentorship</>}
-                      </button>
-                    )}
-
-                    {!user && (
-                      <button className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
-                        View Available Mentors ({domain.stats?.available_mentors || 0})
+                        {isAlumniExpert ? <CheckCircle2 size={14} color="var(--accent-emerald)" /> : <Plus size={14} />}
+                        {isAlumniExpert ? 'Mentoring Track Active' : 'Offer Mentorship'}
                       </button>
                     )}
                   </div>
@@ -357,11 +324,11 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
         </div>
       )}
 
-      {/* Confirmation Popup Modal for ADDING & REMOVING Domain Interest/Expertise */}
-      {confirmDomainModal && (
+      {/* Confirmation Popup Modal for Domain Removal */}
+      {confirmRemoveModal && (
         <div
           className="modal-overlay"
-          onClick={() => setConfirmDomainModal(null)}
+          onClick={() => setConfirmRemoveModal(null)}
           style={{
             position: 'fixed',
             top: 0,
@@ -372,130 +339,62 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
             height: '100vh',
             display: 'flex',
             alignItems: 'center',
-            justify: 'center',
-            zIndex: 99999
+            justifyContent: 'center',
+            zIndex: 9999,
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            padding: '1.5rem'
           }}
         >
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', margin: 'auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', color: confirmDomainModal.actionType === 'REMOVE' ? '#dc2626' : 'var(--primary)' }}>
-              {confirmDomainModal.actionType === 'REMOVE' ? <AlertTriangle size={24} color="#dc2626" /> : <Sparkles size={24} color="var(--primary)" />}
-              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)' }}>
-                {confirmDomainModal.actionType === 'REMOVE'
-                  ? (confirmDomainModal.roleType === 'STUDENT' ? 'Remove Technical Interest?' : 'Remove Mentorship Track?')
-                  : (confirmDomainModal.roleType === 'STUDENT' ? 'Confirm Adding Technical Interest' : 'Confirm Offering Mentorship')}
-              </h3>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-card)',
+              borderRadius: '20px',
+              boxShadow: 'var(--shadow-lg)',
+              padding: '1.75rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'rgba(220, 38, 38, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertTriangle size={22} color="#dc2626" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                  Remove Domain Track?
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Confirm removal of domain track
+                </p>
+              </div>
             </div>
 
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-              {confirmDomainModal.actionType === 'REMOVE' ? (
-                <>Are you sure you want to remove <strong>{confirmDomainModal.domain?.name}</strong> from your active {confirmDomainModal.roleType === 'STUDENT' ? 'student domain interests' : 'mentorship expertise tracks'}?</>
-              ) : (
-                <>Are you sure you want to add <strong>{confirmDomainModal.domain?.name}</strong> to your active {confirmDomainModal.roleType === 'STUDENT' ? 'career interests? Verified alumni mentors in this domain will be recommended for 1-on-1 mentorship.' : 'mentorship tracks? Students seeking guidance in this domain will be able to request mentorship.'}</>
-              )}
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.5, marginBottom: '1.5rem', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+              Are you sure you want to remove <strong>"{confirmRemoveModal.domain.name}"</strong> from your {confirmRemoveModal.roleType === 'STUDENT' ? 'career interest tracks' : 'active mentorship offerings'}?
             </p>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-              <button onClick={() => setConfirmDomainModal(null)} className="btn btn-secondary btn-sm">
+              <button onClick={() => setConfirmRemoveModal(null)} className="btn btn-secondary">
                 Cancel
               </button>
-              <button
-                onClick={handleConfirmAction}
-                className={`btn btn-sm ${confirmDomainModal.actionType === 'REMOVE' ? 'btn-danger' : 'btn-primary'}`}
-              >
-                {confirmDomainModal.actionType === 'REMOVE'
-                  ? (confirmDomainModal.roleType === 'STUDENT' ? 'Remove Interest' : 'Remove Track')
-                  : (confirmDomainModal.roleType === 'STUDENT' ? 'Confirm & Add Interest' : 'Confirm & Offer Mentorship')}
+              <button onClick={handleConfirmRemove} className="btn btn-danger">
+                <Trash2 size={15} /> Confirm Remove
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Domain Mentors Popup Modal */}
-      {selectedDomainModal && (
-        <div className="modal-overlay" onClick={() => setSelectedDomainModal(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '750px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <div>
-                <span className="badge badge-purple" style={{ marginBottom: '0.35rem' }}>{selectedDomainModal.category}</span>
-                <h3 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Mentors in {selectedDomainModal.name}</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Verified alumni mentors available for student mentorship</p>
-              </div>
-              <button onClick={() => setSelectedDomainModal(null)} className="btn btn-secondary btn-sm"><X size={18} /></button>
-            </div>
-
-            {loadingMentors ? (
-              <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading specialized mentors...</p>
-            ) : domainMentors.length === 0 ? (
-              <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No verified mentors currently assigned to this domain.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {domainMentors.map(m => {
-                  const cap = m.profile?.max_capacity || 5;
-                  const curr = m.profile?.current_capacity || 0;
-                  const availableSlots = Math.max(0, cap - curr);
-
-                  return (
-                    <div
-                      key={m.id}
-                      style={{
-                        padding: '1.25rem',
-                        borderRadius: '12px',
-                        background: 'var(--bg-subtle)',
-                        border: '1px solid var(--border-card)',
-                        display: 'flex',
-                        justify: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <h4 style={{ fontSize: '1.15rem', color: 'var(--text-main)' }}>{m.name}</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>
-                          {m.profile?.designation} at {m.profile?.company} ({m.profile?.experience_years} Yrs Exp)
-                        </p>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontStyle: 'italic' }}>
-                          "{m.profile?.bio || 'Experienced mentor'}"
-                        </p>
-                      </div>
-
-                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                        <span className={`badge ${availableSlots > 0 ? 'badge-emerald' : 'badge-amber'}`}>
-                          {availableSlots} / {cap} Slots Free
-                        </span>
-
-                        {user?.role === 'STUDENT' && user?.verification_status === 'VERIFIED' && (
-                          availableSlots > 0 ? (
-                            <button
-                              onClick={() => {
-                                setSelectedDomainModal(null);
-                                onRequestMentorship(m);
-                              }}
-                              className="btn btn-primary btn-sm"
-                            >
-                              <Send size={14} /> Request Mentorship
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSelectedDomainModal(null);
-                                onRequestMentorship({ ...m, isWaitlist: true });
-                              }}
-                              className="btn btn-secondary btn-sm"
-                              style={{ borderColor: '#fde68a', background: '#fffbeb', color: '#b45309' }}
-                            >
-                              <Clock size={14} color="#b45309" /> Join Waitlist
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Mentor Domain Request Modal */}
+      <RequestDomainModal
+        isOpen={isRequestDomainOpen}
+        onClose={() => setIsRequestDomainOpen(false)}
+        onSuccess={fetchDomains}
+      />
     </div>
   );
 };
