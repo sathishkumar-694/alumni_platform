@@ -8,6 +8,10 @@ USE `campusbridge`;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `referral_applications`;
+DROP TABLE IF EXISTS `jobs`;
+DROP TABLE IF EXISTS `notifications`;
+DROP TABLE IF EXISTS `id_verifications`;
 DROP TABLE IF EXISTS `audit_logs`;
 DROP TABLE IF EXISTS `announcements`;
 DROP TABLE IF EXISTS `resources`;

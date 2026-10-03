@@ -60,13 +60,12 @@ export const db = {
       };
     },
     create: async (profile) => {
-      const id = profile.id || `sp-${Date.now()}`;
       const interestsJson = JSON.stringify(profile.interests || []);
       await queryMySQL(
-        'INSERT INTO `student_profiles` (`id`, `user_id`, `reg_number`, `academic_year`, `department`, `career_goals`, `interests`) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, profile.user_id, profile.reg_number || '', profile.academic_year || '', profile.department || '', profile.career_goals || '', interestsJson]
+        'INSERT INTO `student_profiles` (`user_id`, `reg_number`, `student_id_card_url`, `academic_year`, `department`, `career_goals`, `interests`) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [profile.user_id, profile.reg_number || '', profile.student_id_card_url || '', profile.academic_year || '3rd Year', profile.department || 'Computer Science & Engineering', profile.career_goals || '', interestsJson]
       );
-      const rows = await queryMySQL('SELECT * FROM `student_profiles` WHERE `id` = ?', [id]);
+      const rows = await queryMySQL('SELECT * FROM `student_profiles` WHERE `user_id` = ?', [profile.user_id]);
       return { ...rows[0], interests: profile.interests || [] };
     },
     update: async (userId, updates) => {
@@ -108,13 +107,12 @@ export const db = {
       };
     },
     create: async (profile) => {
-      const id = profile.id || `ap-${Date.now()}`;
       const expertiseJson = JSON.stringify(profile.expertise || []);
       await queryMySQL(
-        'INSERT INTO `alumni_profiles` (`id`, `user_id`, `company`, `designation`, `experience_years`, `graduation_year`, `max_capacity`, `current_capacity`, `expertise`, `bio`, `linkedin_url`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, profile.user_id, profile.company || '', profile.designation || '', profile.experience_years || 0, profile.graduation_year || 2020, profile.max_capacity || 5, profile.current_capacity || 0, expertiseJson, profile.bio || '', profile.linkedin_url || '']
+        'INSERT INTO `alumni_profiles` (`user_id`, `alumni_id_card_url`, `company`, `designation`, `experience_years`, `graduation_year`, `linkedin_url`, `max_capacity`, `current_capacity`, `expertise`, `bio`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [profile.user_id, profile.alumni_id_card_url || '', profile.company || '', profile.designation || '', profile.experience_years || 1, profile.graduation_year || 2020, profile.linkedin_url || '', profile.max_capacity || 5, profile.current_capacity || 0, expertiseJson, profile.bio || '']
       );
-      const rows = await queryMySQL('SELECT * FROM `alumni_profiles` WHERE `id` = ?', [id]);
+      const rows = await queryMySQL('SELECT * FROM `alumni_profiles` WHERE `user_id` = ?', [profile.user_id]);
       return { ...rows[0], expertise: profile.expertise || [] };
     },
     update: async (userId, updates) => {

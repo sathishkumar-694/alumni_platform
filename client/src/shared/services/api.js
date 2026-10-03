@@ -1,8 +1,20 @@
 const DEFAULT_HOST = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : 'localhost';
 const ENV_API_URL = import.meta.env?.VITE_API_BASE_URL;
 
+const IS_HTTPS = typeof window !== 'undefined' && window.location.protocol === 'https:';
+const RENDER_PROD_API_URL = 'https://alumni-platform-pv27.onrender.com/api/v1';
+
 const PORTS_TO_PROBE = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5010, 5012, 5015, 5020];
-let cachedActiveApiBaseUrl = ENV_API_URL || null;
+
+let cachedActiveApiBaseUrl = (() => {
+  if (ENV_API_URL && (IS_HTTPS ? ENV_API_URL.startsWith('https://') : true)) {
+    return ENV_API_URL;
+  }
+  if (IS_HTTPS) {
+    return RENDER_PROD_API_URL;
+  }
+  return null;
+})();
 
 let activePortPromise = null;
 
@@ -11,9 +23,14 @@ export const getActiveApiUrl = async (forceRefresh = false) => {
     return cachedActiveApiBaseUrl;
   }
 
+  if (IS_HTTPS) {
+    cachedActiveApiBaseUrl = (ENV_API_URL && ENV_API_URL.startsWith('https://')) ? ENV_API_URL : RENDER_PROD_API_URL;
+    return cachedActiveApiBaseUrl;
+  }
+
   if (!forceRefresh) {
     const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('campusbridge_active_api_url') : null;
-    if (saved) {
+    if (saved && !saved.startsWith('http://')) {
       try {
         const res = await fetch(`${saved}/health`, { signal: AbortSignal.timeout(300) });
         if (res.ok) {
@@ -58,7 +75,7 @@ export const getActiveApiUrl = async (forceRefresh = false) => {
 };
 
 export const getApiOrigin = () => {
-  const base = cachedActiveApiBaseUrl || `http://${DEFAULT_HOST}:5001/api/v1`;
+  const base = cachedActiveApiBaseUrl || (IS_HTTPS ? RENDER_PROD_API_URL : `http://${DEFAULT_HOST}:5001/api/v1`);
   return base.replace(/\/api\/v1\/?$/, '');
 };
 
@@ -76,11 +93,15 @@ export const apiClient = async (endpoint, options = {}) => {
   let baseUrl = await getActiveApiUrl();
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('campusbridge_token') : null;
 
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   };
+  if (isFormData) {
+    delete headers['Content-Type'];
+  }
 
   // Normalize endpoint to always include /api/v1 prefix cleanly
   let rawEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;

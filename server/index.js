@@ -27,8 +27,11 @@ const app = express();
 
 app.use(cors({
   origin: true,
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
+app.options('*', cors());
 
 // Configure 50mb body limit for large PDF / Base64 resume file payloads
 app.use(express.json({ limit: '50mb' }));

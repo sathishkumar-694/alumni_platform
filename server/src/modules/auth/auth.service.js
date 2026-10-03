@@ -9,6 +9,10 @@ export class AuthService {
   async registerStudent(studentData, file) {
     const { name, email, password, regNumber, academicYear, department, careerGoals } = studentData;
 
+    if (!name || !email || !password || !regNumber) {
+      throw new ApiError(400, 'Name, email, password, and registration number are required');
+    }
+
     const existingUser = await authRepository.findUserByEmail(email);
     if (existingUser) {
       throw new ApiError(400, 'An account with this email address already exists');
@@ -56,6 +60,10 @@ export class AuthService {
 
   async registerAlumni(alumniData, file) {
     const { name, email, password, company, designation, experienceYears, graduationYear, linkedinUrl, maxCapacity, bio } = alumniData;
+
+    if (!name || !email || !password || !company || !designation) {
+      throw new ApiError(400, 'Name, email, password, company, and designation are required');
+    }
 
     const existingUser = await authRepository.findUserByEmail(email);
     if (existingUser) {
