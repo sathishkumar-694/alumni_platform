@@ -89,18 +89,11 @@ app.get(['/api/v1/setup-db', '/setup-db'], async (req, res) => {
       }
     }
 
-    const defaultPasswordHash = bcrypt.hashSync('password123', 10);
-    try {
-      await connectionPool.query('UPDATE `users` SET `password_hash` = ?', [defaultPasswordHash]);
-    } catch (e) {
-      // ignore
-    }
-
     await ensureDatabaseSchema();
 
     res.status(200).json({
       status: 'SUCCESS',
-      message: 'Aiven MySQL database tables and seed records initialized successfully!',
+      message: 'Aiven MySQL database tables initialized successfully!',
       timestamp: new Date().toISOString()
     });
   } catch (error) {

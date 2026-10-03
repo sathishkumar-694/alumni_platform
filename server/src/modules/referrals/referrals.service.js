@@ -12,8 +12,8 @@ export class ReferralsService {
         title: j.title,
         company: j.company,
         location: j.location,
-        postedBy: alumni?.name || 'Arumugam',
-        alumniRole: profile?.designation || 'Lead Systems Engineer',
+        postedBy: alumni?.name || 'Alumni Mentor',
+        alumniRole: profile?.designation || 'Alumni Specialist',
         experienceReq: j.experience_req || '0 - 1 Yr',
         skills: Array.isArray(j.skills) ? j.skills : [],
         referralOpen: j.status === 'OPEN',
@@ -84,8 +84,8 @@ export class ReferralsService {
         job_id: app.job_id,
         job_title: job?.title || 'Software Engineering Role',
         company: job?.company || 'Tech Firm',
-        student_name: student?.name || 'Ashwanth',
-        student_email: student?.email || 'student@university.edu',
+        student_name: student?.name || 'Student Applicant',
+        student_email: student?.email || 'N/A',
         status: app.status || 'PENDING',
         applied_at: app.applied_at
       };

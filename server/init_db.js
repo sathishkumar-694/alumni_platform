@@ -42,11 +42,7 @@ async function initDB() {
     console.log(`Executing database setup SQL script on '${config.mysql.database}'...`);
     await connection.query(sqlScript);
 
-    // Ensure all seed users have bcrypt hash of 'password123'
-    const defaultPasswordHash = bcrypt.hashSync('password123', 10);
-    await connection.query('UPDATE `users` SET `password_hash` = ?', [defaultPasswordHash]);
-
-    console.log('✅ All tables and seed records created & password hashes synchronized successfully!');
+    console.log('✅ All database tables created successfully!');
   } catch (error) {
     console.error('❌ Failed to initialize MySQL database:', error.message);
   } finally {

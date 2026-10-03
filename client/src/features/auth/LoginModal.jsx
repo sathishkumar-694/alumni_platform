@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, LogIn, Sparkles, User, ShieldCheck } from 'lucide-react';
+import { X, LogIn } from 'lucide-react';
 
 export const LoginModal = ({ isOpen, onClose }) => {
   const { login } = useAuth();
@@ -24,11 +24,6 @@ export const LoginModal = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickLogin = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
   };
 
   return (
@@ -76,35 +71,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Demo Account Fast Select */}
-        <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px', marginBottom: '1.25rem', border: '1px solid var(--border-card)' }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-subtle)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-            1-Click Demo Testing Credentials:
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleQuickLogin('ashwanth.bt23@bitsathy.ac.in', '7376231BT111')}
-            >
-              <Sparkles size={12} color="var(--primary)" /> Student (Ashwanth)
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleQuickLogin('arumugam@tech.gmail.com', '7376231EC001')}
-            >
-              <User size={12} color="var(--accent-purple)" /> Mentor (Arumugam)
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleQuickLogin('admin@university.edu', 'password123')}
-            >
-              <ShieldCheck size={12} color="var(--accent-emerald)" /> Administrator
-            </button>
-          </div>
-        </div>
+
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">

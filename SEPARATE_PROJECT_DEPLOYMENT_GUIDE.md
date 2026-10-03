@@ -33,11 +33,11 @@ campusbridge/
 │   └── .env.example
 ├── server/                     # Node.js + Express REST API Server
 │   ├── src/
-│   ├── database_setup.sql      # Full MySQL Database DDL/DML Schema
-│   ├── init_db.js              # Database Seeder & Password Synchronizer
+│   ├── database_setup.sql      # Full MySQL Database DDL Schema
+│   ├── init_db.js              # Database Table Initializer
 │   ├── package.json
 │   └── .env.example
-├── docker-compose.yml          # Multi-Container Production Stack
+├── render.yaml                 # Render Blueprint / Cloud Deployment Config
 ├── API_DOCUMENTATION.md        # Endpoint Reference & Response Examples
 ├── API_REFERENCE_TABLE.md      # Master REST API Matrix Table
 ├── README.md                   # Project Overview & Setup Guide
@@ -105,17 +105,11 @@ git push -u origin main
 
 ## 🌐 4. Cloud Deployment Options
 
-### Option A: One-Click Docker Container Stack (Recommended)
-If deploying to AWS EC2, DigitalOcean, or Railway with Docker:
-```bash
-docker-compose up --build -d
-```
-
-### Option B: Cloud Hosting Services
-1. **Database**: Free Managed MySQL via [Aiven.io](https://aiven.io/), [Railway.app](https://railway.app/), or [Render.com](https://render.com/).
-2. **Backend Engine**: Deploy `server/` to Render.com, Railway.app, or Heroku.
+### Cloud Hosting (Render / Vercel / Railway)
+1. **Database**: Free Managed MySQL via [Aiven.io](https://aiven.io/) or [Railway.app](https://railway.app/).
+2. **Backend Engine**: Deploy `server/` to Render.com or Railway.app.
    - Build Command: `npm install`
-   - Start Command: `node init_db.js && npm start`
-3. **Frontend Application**: Deploy `client/` to [Vercel.com](https://vercel.com/) or [Netlify.com](https://netlify.com/).
+   - Start Command: `npm start`
+3. **Frontend Application**: Deploy `client/` to Render, Vercel, or Netlify.
    - Build Command: `npm run build`
    - Output Directory: `dist`
