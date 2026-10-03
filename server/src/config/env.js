@@ -3,7 +3,7 @@ dotenv.config();
 
 const cleanEnv = (val, fallback) => {
   if (!val) return fallback;
-  return val.replace(/['";,]/g, '').trim();
+  return val.replace(/\s+/g, '').replace(/['";,]/g, '').trim();
 };
 
 export const config = {

@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
+import bcrypt from 'bcryptjs';
 import { config } from './src/config/env.js';
-import { ensureDatabaseSchema } from './src/config/mysql.js';
+import { getMySQLPool, ensureDatabaseSchema } from './src/config/mysql.js';
 import { errorMiddleware } from './src/middleware/error.middleware.js';
 import { renderSwaggerHTML, openApiSpec } from './src/config/swagger.js';
 
@@ -63,6 +64,53 @@ app.get('/health', (req, res) => {
   });
 });
 
+// One-Click Cloud Database Schema Initializer Endpoint
+app.get(['/api/v1/setup-db', '/setup-db'], async (req, res) => {
+  try {
+    const connectionPool = getMySQLPool();
+    const sqlFilePath = path.join(process.cwd(), 'database_setup.sql');
+    let sqlScript = fs.readFileSync(sqlFilePath, 'utf8');
+
+    sqlScript = sqlScript
+      .replace(/CREATE DATABASE IF NOT EXISTS `campusbridge`[^;]+;/gi, '')
+      .replace(/USE `campusbridge`;/gi, '')
+      .replace(/`campusbridge`\./gi, '');
+
+    const statements = sqlScript
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    for (const statement of statements) {
+      try {
+        await connectionPool.query(statement);
+      } catch (stmtErr) {
+        console.warn('[Setup-DB Statement Warning]:', stmtErr.message);
+      }
+    }
+
+    const defaultPasswordHash = bcrypt.hashSync('password123', 10);
+    try {
+      await connectionPool.query('UPDATE `users` SET `password_hash` = ?', [defaultPasswordHash]);
+    } catch (e) {
+      // ignore
+    }
+
+    await ensureDatabaseSchema();
+
+    res.status(200).json({
+      status: 'SUCCESS',
+      message: 'Aiven MySQL database tables and seed records initialized successfully!',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Failed to setup database on Aiven MySQL: ' + error.message
+    });
+  }
+});
+
 // Primary Feature API Routes (/api/v1/*)
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/verification', verificationRoutes);
@@ -94,10 +142,14 @@ app.use('/analytics', analyticsRoutes);
 app.use('/audit', auditRoutes);
 
 // Serve production built client static assets if available
-const clientDistPath = path.join(process.cwd(), '..', 'client', 'dist');
-const localClientDistPath = path.join(process.cwd(), 'client', 'dist');
+const candidateDistPaths = [
+  path.join(process.cwd(), 'client', 'dist'),
+  path.join(process.cwd(), '..', 'client', 'dist'),
+  path.resolve('client/dist'),
+  path.resolve('../client/dist')
+];
 
-const distPathToUse = fs.existsSync(clientDistPath) ? clientDistPath : fs.existsSync(localClientDistPath) ? localClientDistPath : null;
+const distPathToUse = candidateDistPaths.find(p => fs.existsSync(p)) || null;
 
 if (distPathToUse) {
   app.use(express.static(distPathToUse));

@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { config } from './src/config/env.js';
 
 async function initDB() {
-  console.log('Connecting to MySQL server to execute database_setup.sql...');
+  console.log(`Connecting to MySQL host '${config.mysql.host}:${config.mysql.port}' (database: '${config.mysql.database}') as user '${config.mysql.user}'...`);
 
   let connection;
   try {
@@ -14,6 +14,7 @@ async function initDB() {
       user: config.mysql.user,
       password: config.mysql.password,
       port: config.mysql.port,
+      database: config.mysql.database,
       multipleStatements: true
     };
 
@@ -23,25 +24,31 @@ async function initDB() {
 
     connection = await mysql.createConnection(connConfig);
 
-    console.log(`Connected to MySQL at ${config.mysql.host}:${config.mysql.port} as user '${config.mysql.user}'`);
+    console.log(`Successfully connected to MySQL!`);
 
     const sqlFilePath = path.join(process.cwd(), 'database_setup.sql');
     if (!fs.existsSync(sqlFilePath)) {
       throw new Error(`database_setup.sql file not found at ${sqlFilePath}`);
     }
 
-    const sqlScript = fs.readFileSync(sqlFilePath, 'utf8');
+    let sqlScript = fs.readFileSync(sqlFilePath, 'utf8');
 
-    console.log('Executing database setup script...');
+    // Adapt script for Aiven / Cloud MySQL (remove hardcoded USE campusbridge)
+    sqlScript = sqlScript
+      .replace(/CREATE DATABASE IF NOT EXISTS `campusbridge`[^;]+;/gi, '')
+      .replace(/USE `campusbridge`;/gi, '')
+      .replace(/`campusbridge`\./gi, '');
+
+    console.log(`Executing database setup SQL script on '${config.mysql.database}'...`);
     await connection.query(sqlScript);
 
     // Ensure all seed users have bcrypt hash of 'password123'
     const defaultPasswordHash = bcrypt.hashSync('password123', 10);
-    await connection.query('UPDATE `campusbridge`.`users` SET `password_hash` = ?', [defaultPasswordHash]);
+    await connection.query('UPDATE `users` SET `password_hash` = ?', [defaultPasswordHash]);
 
-    console.log('Database campusbridge and all tables/seed records created & password hashes synchronized successfully.');
+    console.log('✅ All tables and seed records created & password hashes synchronized successfully!');
   } catch (error) {
-    console.error('Failed to initialize MySQL database:', error.message);
+    console.error('❌ Failed to initialize MySQL database:', error.message);
   } finally {
     if (connection) {
       await connection.end();

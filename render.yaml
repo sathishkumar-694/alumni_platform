@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: campusbridge-platform
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: npm run build
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.10.0
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        value: alumini-sksathish694-776e.a.aivencloud.com
+      - key: DB_PORT
+        value: "23033"
+      - key: DB_USER
+        value: avnadmin
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: defaultdb
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        value: campusbridge_super_secret_jwt_key_2026
+      - key: GEMINI_API_KEY
+        sync: false
