@@ -12,12 +12,23 @@ export const LoginModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
       await login(email, password);
       showNotification('Successfully logged in!', 'success');
+      resetForm();
       onClose();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -29,7 +40,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: 'fixed',
         top: 0,
@@ -66,7 +77,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
             <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Account Sign In</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Access your CampusBridge portal dashboard</p>
           </div>
-          <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
+          <button onClick={handleClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
             <X size={18} />
           </button>
         </div>

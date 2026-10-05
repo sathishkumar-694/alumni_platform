@@ -56,8 +56,8 @@ const MainContent = () => {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isRegisterStudentOpen, setIsRegisterStudentOpen] = useState(false);
   const [isRegisterAlumniOpen, setIsRegisterAlumniOpen] = useState(false);
-
   const [selectedMentorForRequest, setSelectedMentorForRequest] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Dynamic Document Title & Meta Descriptions per tab (Items 2 & 3)
   useDocumentMeta(activeTab);
@@ -121,6 +121,9 @@ const MainContent = () => {
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenRegisterStudent={() => setIsRegisterStudentOpen(true)}
         onOpenRegisterAlumni={() => setIsRegisterAlumniOpen(true)}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        activeTab={activeTab}
       />
 
       {/* Verification Status Warning Banner */}
@@ -177,6 +180,7 @@ const MainContent = () => {
             {activeTab === 'recommended_mentors' && (
               <RecommendedMentorsView
                 onRequestMentorship={(mentor) => setSelectedMentorForRequest(mentor)}
+                searchQuery={searchQuery}
               />
             )}
 
@@ -185,6 +189,7 @@ const MainContent = () => {
               <DomainExplorer
                 onOpenCreateDomain={() => handleSetActiveTab('admin_operations')}
                 onRequestMentorship={(mentor) => setSelectedMentorForRequest(mentor)}
+                searchQuery={searchQuery}
               />
             )}
 

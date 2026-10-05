@@ -162,7 +162,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 LayoutDashboard
               )}
               {renderNavItem('explore', 'Technical Domain Directory', Compass)}
-              {user && renderNavItem('profile', 'My Profile & ID Credentials', User)}
             </div>
           )}
         </div>
@@ -198,7 +197,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
             {openSections.mentorship && (
               <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                 {renderNavItem('resume_analyzer', 'AI Resume Analyzer', Sparkles)}
-                {renderNavItem('recommended_mentors', 'Recommended Mentors', Award)}
+                {isStudent && renderNavItem('recommended_mentors', 'Recommended Mentors', Award)}
                 {renderNavItem(
                   'active_mentorships',
                   isStudent ? 'My Alumni Mentors' : isAlumni ? 'Active Student Mentees' : 'All Active Mentorships',

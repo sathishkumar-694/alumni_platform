@@ -35,6 +35,24 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
     setFile(selectedFile);
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      regNumber: '',
+      academicYear: '',
+      department: '',
+      careerGoals: ''
+    });
+    setFile(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -63,6 +81,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
 
       await registerStudent(data);
       showNotification('Student registration successful! Your verification is pending admin review.', 'success');
+      resetForm();
       onClose();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -74,7 +93,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: 'fixed',
         top: 0,
@@ -95,7 +114,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
             <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Student Registration</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Join CampusBridge to find verified alumni mentors</p>
           </div>
-          <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
+          <button onClick={handleClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
             <X size={18} />
           </button>
         </div>

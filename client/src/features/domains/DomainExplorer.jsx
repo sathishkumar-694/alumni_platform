@@ -42,7 +42,7 @@ const ICON_MAP = {
   Server: Server
 };
 
-export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
+export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship, searchQuery = '' }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [domains, setDomains] = useState([]);
@@ -166,9 +166,15 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship }) => {
 
   const categories = ['ALL', ...new Set(domains.map(d => d.category || 'General'))];
 
-  const filteredDomains = selectedCategory === 'ALL'
-    ? domains
-    : domains.filter(d => d.category === selectedCategory);
+  const filteredDomains = domains.filter(d => {
+    const matchesCategory = selectedCategory === 'ALL' || d.category === selectedCategory;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q ||
+      (d.name && d.name.toLowerCase().includes(q)) ||
+      (d.category && d.category.toLowerCase().includes(q)) ||
+      (d.description && d.description.toLowerCase().includes(q));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div style={{ maxWidth: '1280px', margin: '1.5rem auto', padding: '0 1.5rem' }}>

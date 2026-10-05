@@ -38,6 +38,27 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
     setFile(selectedFile);
   };
 
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      company: '',
+      designation: '',
+      experienceYears: '1',
+      graduationYear: String(new Date().getFullYear()),
+      linkedinUrl: '',
+      maxCapacity: '5',
+      bio: ''
+    });
+    setFile(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -56,6 +77,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
 
       await registerAlumni(data);
       showNotification('Alumni mentor registered successfully! Verification pending administrative review.', 'success');
+      resetForm();
       onClose();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -67,7 +89,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
   return (
     <div
       className="modal-overlay"
-      onClick={onClose}
+      onClick={handleClose}
       style={{
         position: 'fixed',
         top: 0,
@@ -88,7 +110,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
             <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Volunteer as Alumni Mentor</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Guide current students and empower the next tech generation</p>
           </div>
-          <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
+          <button onClick={handleClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
             <X size={18} />
           </button>
         </div>

@@ -4,7 +4,7 @@ import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { Sparkles, Briefcase, Award, CheckCircle, Send, Linkedin, BookOpen, Clock } from 'lucide-react';
 
-export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false }) => {
+export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false, searchQuery = '' }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
 
@@ -29,6 +29,16 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
       setLoading(false);
     }
   }, [user]);
+
+  const filteredMentors = searchQuery ? mentors.filter(m => {
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = m.name && m.name.toLowerCase().includes(q);
+    const companyMatch = m.company && m.company.toLowerCase().includes(q);
+    const designationMatch = m.designation && m.designation.toLowerCase().includes(q);
+    const bioMatch = m.bio && m.bio.toLowerCase().includes(q);
+    const expertiseMatch = Array.isArray(m.expertise) && m.expertise.some(e => String(e).toLowerCase().includes(q));
+    return nameMatch || companyMatch || designationMatch || bioMatch || expertiseMatch;
+  }) : mentors;
 
   if (user?.verification_status !== 'VERIFIED') {
     return (
@@ -57,13 +67,13 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
         <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
           Calculating mentor recommendation match scores...
         </div>
-      ) : mentors.length === 0 ? (
+      ) : filteredMentors.length === 0 ? (
         <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          No verified alumni mentors found matching your profile domain criteria.
+          {searchQuery ? `No verified alumni mentors found matching "${searchQuery}".` : 'No verified alumni mentors found matching your profile domain criteria.'}
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.5rem' }}>
-          {mentors.map(mentor => (
+          {filteredMentors.map(mentor => (
             <div
               key={mentor.id}
               className="glass-panel glass-panel-glow"

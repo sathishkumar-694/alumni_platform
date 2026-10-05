@@ -3,9 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
 import { Search, Bell, Sun, Moon, ChevronDown, LogOut, User, Sparkles, Check, ArrowRight, MessageSquare, Calendar, Briefcase, ShieldCheck } from 'lucide-react';
 
-export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni }) => {
+export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni, searchQuery = '', onSearchChange, activeTab }) => {
   const { user, logout } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
 
@@ -109,9 +108,18 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const handleInputChange = (e) => {
+    if (onSearchChange) {
+      onSearchChange(e.target.value);
+    }
+  };
+
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter') {
-      onNavigate?.('explore');
+      const searchableTabs = ['explore', 'recommended_mentors', 'resources', 'referrals', 'announcements'];
+      if (!searchableTabs.includes(activeTab)) {
+        onNavigate?.('explore');
+      }
     }
   };
 
@@ -153,8 +161,8 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
               type="text"
               className="form-input"
               placeholder="Search mentors, domains, job referrals... (Press / to focus)"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchQuery}
+              onChange={handleInputChange}
               onKeyDown={handleSearchSubmit}
               style={{
                 width: '100%',

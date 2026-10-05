@@ -4,7 +4,7 @@ import { RequestMentorshipModal } from '../mentorship/RequestMentorshipModal';
 import { Sparkles, Award, Users, Compass } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 
-export const RecommendedMentorsView = ({ onRequestMentorship }) => {
+export const RecommendedMentorsView = ({ onRequestMentorship, searchQuery = '' }) => {
   const { user } = useAuth();
   const [selectedMentor, setSelectedMentor] = useState(null);
 
@@ -69,7 +69,7 @@ export const RecommendedMentorsView = ({ onRequestMentorship }) => {
       </div>
 
       {/* Recommended Mentors Grid Component */}
-      <RecommendedMentorsGrid onRequestMentorship={handleRequest} hideHeader={true} />
+      <RecommendedMentorsGrid onRequestMentorship={handleRequest} hideHeader={true} searchQuery={searchQuery} />
 
       {/* Request Mentorship Modal */}
       {selectedMentor && (
