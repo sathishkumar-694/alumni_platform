@@ -55,35 +55,44 @@ export class RecommendationService {
     return recommended;
   }
 
-  async analyzeResume(currentUser, { resumeText = '', targetRole = 'Software Development Engineer', portfolioUrl = '', fileBase64 = '', fileMimeType = '' }) {
-    const openAiApiKey = (process.env.OPENAI_API_KEY || config.openaiApiKey || '').trim();
-    const geminiApiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
+  async analyzeResume(currentUser, { resumeText = '', targetRole = 'Software Development Engineer', portfolioUrl = '', apiKey = '', aiProvider = 'gemini' }) {
+    // 1. Resolve Primary & Fallback API Keys from request or environment
+    const geminiKey = (apiKey && aiProvider === 'gemini' ? apiKey : process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
+    const groqKey = (apiKey && aiProvider === 'groq' ? apiKey : process.env.GROQ_API_KEY || config.groqApiKey || '').trim();
+    const openAiKey = (apiKey && aiProvider === 'openai' ? apiKey : process.env.OPENAI_API_KEY || config.openaiApiKey || '').trim();
+
+    // Clean and sanitize input resume text to strip non-printable binary control characters
+    const cleanResumeText = (resumeText || '')
+      .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanResumeText) {
+      throw new ApiError(400, 'Please provide valid resume text or upload a document containing text.');
+    }
 
     const dbDomains = await recommendationRepository.findAllDomains();
     const allMentors = await this.getRecommendedMentors(currentUser);
 
-    // 1. IF GEMINI_API_KEY is configured in .env, call Google Gemini AI Engine
-    if (geminiApiKey) {
-      console.log('[Gemini API Initiated] Calling Google Gemini API with key:', geminiApiKey.slice(0, 10) + '...');
-      
-      const promptText = `You are a professional, unbiased AI Resume ATS Evaluator & Career Advisor.
-Carefully read and evaluate the attached resume document/text strictly against the requested Target Role: "${targetRole}".
+    const promptText = `You are a professional AI ATS Resume Evaluator & Career Advisor.
+Carefully read and evaluate the attached candidate resume strictly against the requested Target Role: "${targetRole}".
 
 Task:
-1. Extract ALL actual technical skills, programming languages, software tools, frameworks, engineering concepts, and domain tools mentioned in the candidate's resume.
-2. Compare the candidate's actual skills and experience against the key requirements for the target role "${targetRole}".
-3. Calculate an accurate overall ATS Compatibility Match Score (0-100%) comparing the resume against "${targetRole}".
+1. Extract ALL actual technical skills, programming languages, software tools, frameworks, and engineering concepts mentioned in the resume.
+2. Compare the candidate's actual skills and experience against key requirements for "${targetRole}".
+3. Calculate an accurate overall ATS Compatibility Match Score (0-100%).
 4. Calculate individual ATS sub-scores (0-100%):
    - keyword_match_score: ATS Keyword Coverage % for "${targetRole}"
    - impact_score: Measurable Metrics & Action Verbs %
    - format_score: Structure, Readability & Organization %
    - technical_depth_score: Skill Relevance & Domain Competency %
 5. Identify 3-6 critical missing skills / ATS keywords needed to rank higher for "${targetRole}".
-6. Provide 3-5 specific, actionable bullet points to optimize the resume for "${targetRole}" (e.g. quantifying metrics, ATS formatting, keyword placement).
+6. Provide 3-5 specific, actionable bullet points to optimize the resume for "${targetRole}".
 
-Resume Text / Context: "${resumeText}"
+Candidate Resume Content:
+"${cleanResumeText.slice(0, 8000)}"
 
-Return RAW JSON ONLY with NO markdown code block formatting:
+Return RAW JSON ONLY with NO markdown syntax:
 {
   "ats_score": <number 0-100>,
   "keyword_match_score": <number 0-100>,
@@ -95,204 +104,165 @@ Return RAW JSON ONLY with NO markdown code block formatting:
   "actionable_advice": ["<improvement1>", "<improvement2>"]
 }`;
 
-      // Known working Gemini model endpoints in order of preference (gemini-3.6-flash is primary)
-      const geminiModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-pro-latest'];
+    // ---------------------------------------------------------
+    // PRIMARY EXTERNAL AI SERVICE: GOOGLE GEMINI AI
+    // ---------------------------------------------------------
+    if (geminiKey && !geminiKey.includes('your_gemini_key_here')) {
+      console.log('[Gemini API Initiated] Calling Google Gemini API with key from server/.env...');
+      const geminiModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.0-pro'];
+      let lastGeminiErr = '';
 
-      // Prepare primary parts payload (with inline_data if supported format)
-      const primaryParts = [];
-      let includeInlineData = false;
-
-      if (fileBase64 && fileBase64.trim()) {
-        const isPdf = (fileMimeType || '').includes('pdf');
-        const isImage = (fileMimeType || '').includes('image/');
-        const isText = (fileMimeType || '').includes('text/');
-
-        if (isPdf || isImage || isText) {
-          const normalizedMime = isPdf ? 'application/pdf' : isImage ? fileMimeType : 'text/plain';
-          primaryParts.push({
-            inline_data: {
-              mime_type: normalizedMime,
-              data: fileBase64
-            }
-          });
-          includeInlineData = true;
-        }
-      }
-
-      primaryParts.push({ text: promptText });
-
-      let geminiData = null;
-      let activeModel = '';
-      let lastApiErrorText = '';
-
-      // Try calling Gemini with primaryParts (multimodal inline_data if applicable)
       for (const modelName of geminiModels) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': geminiApiKey
-            },
-            body: JSON.stringify({
-              contents: [{ parts: primaryParts }]
-            })
-          });
+        // Try both v1beta and v1 endpoints
+        const endpoints = [
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${geminiKey}`
+        ];
 
-          if (res.ok) {
-            geminiData = await res.json();
-            activeModel = modelName;
-            console.log(`[Google Gemini AI Success] Model '${activeModel}' analyzed resume!`);
-            break;
-          } else {
-            console.log(`[Gemini Model ${modelName} HTTP ${res.status}] Trying next Gemini model...`);
-          }
-        } catch (fetchErr) {
-          lastApiErrorText = fetchErr.message;
-        }
-      }
-
-      // If multimodal attempt failed (e.g. invalid inline_data format), fallback to text-only Gemini prompt
-      if (!geminiData && includeInlineData) {
-        console.log('[Gemini Multimodal Warning] Inline data attempt failed. Falling back to text-only Gemini prompt...');
-        const textOnlyParts = [{ text: promptText }];
-        for (const modelName of geminiModels) {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiApiKey}`;
+        for (const url of endpoints) {
           try {
             const res = await fetch(url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'x-goog-api-key': geminiApiKey
+                'x-goog-api-key': geminiKey
               },
-              body: JSON.stringify({
-                contents: [{ parts: textOnlyParts }]
-              })
+              body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
             });
 
             if (res.ok) {
-              geminiData = await res.json();
-              activeModel = modelName;
-              console.log(`[Google Gemini AI Text Fallback Success] Model '${activeModel}' analyzed resume text!`);
-              break;
+              const geminiData = await res.json();
+              let rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+              rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+              let parsed = JSON.parse(rawText);
+              const score = Number(parsed.ats_score || parsed.sde_fit_score) || 78;
+
+              return {
+                target_role: targetRole,
+                ats_score: score,
+                sde_fit_score: score,
+                keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 4),
+                impact_score: Number(parsed.impact_score) || Math.max(55, score - 6),
+                format_score: Number(parsed.format_score) || 88,
+                technical_depth_score: Number(parsed.technical_depth_score) || score,
+                detected_skills: Array.isArray(parsed.detected_skills) && parsed.detected_skills.length > 0 ? parsed.detected_skills : ['Technical Fundamentals'],
+                recommended_skills_to_learn: Array.isArray(parsed.missing_skills) && parsed.missing_skills.length > 0 ? parsed.missing_skills : ['System Architecture'],
+                portfolio_analyzed: Boolean(portfolioUrl),
+                matched_mentors: allMentors.slice(0, 3),
+                actionable_advice: Array.isArray(parsed.actionable_advice) && parsed.actionable_advice.length > 0 ? parsed.actionable_advice : ['Incorporate core missing industry keywords into your project experience.'],
+                ai_provider: `Google Gemini AI (${modelName})`
+              };
+            } else {
+              const errData = await res.json().catch(() => ({}));
+              lastGeminiErr = errData.error?.message || `HTTP ${res.status}`;
+              console.error(`[Gemini API Warning - ${modelName}]: ${lastGeminiErr}`);
             }
-          } catch (fetchErr) {
-            // ignore
+          } catch (err) {
+            lastGeminiErr = err.message;
+            console.warn(`[Gemini API Exception - ${modelName}]:`, err.message);
           }
         }
       }
 
-      if (geminiData) {
-        let rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
-        
-        let parsed = {};
+      // If Gemini Key was provided, throw Gemini error directly instead of falling back to Groq
+      throw new ApiError(400, `Google Gemini API Error: ${lastGeminiErr}. Please check GEMINI_API_KEY in server/.env`);
+    }
+
+    // ---------------------------------------------------------
+    // FALLBACK EXTERNAL AI SERVICE: GROQ CLOUD AI (Active Non-Deprecated Models)
+    // ---------------------------------------------------------
+    if (groqKey && !groqKey.includes('your_groq_key_here')) {
+      console.log('[Groq API Initiated] Calling Groq Cloud API with key from server/.env...');
+      // Officially active non-decommissioned Groq model identifiers
+      const groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'gemma2-9b-it', 'deepseek-r1-distill-llama-70b'];
+      let lastGroqErr = '';
+
+      for (const groqModel of groqModels) {
         try {
-          parsed = JSON.parse(rawText);
-        } catch (jsonErr) {
-          console.warn('[Gemini Response JSON Parse Error] Raw text was:', rawText);
-          parsed = { ats_score: 75, detected_skills: ['Software Engineering', 'Problem Solving'], missing_skills: ['System Architecture', 'Cloud Infrastructure'] };
+          const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${groqKey}`
+            },
+            body: JSON.stringify({
+              model: groqModel,
+              messages: [
+                { role: 'system', content: 'You are an expert AI ATS Resume Evaluator. Output valid JSON only.' },
+                { role: 'user', content: promptText }
+              ],
+              response_format: { type: 'json_object' }
+            })
+          });
+
+          if (response.ok) {
+            const aiData = await response.json();
+            const parsed = JSON.parse(aiData.choices[0]?.message?.content || '{}');
+            const score = Number(parsed.ats_score) || 85;
+
+            return {
+              target_role: targetRole,
+              ats_score: score,
+              sde_fit_score: score,
+              keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 3),
+              impact_score: Number(parsed.impact_score) || Math.max(60, score - 5),
+              format_score: Number(parsed.format_score) || 92,
+              technical_depth_score: Number(parsed.technical_depth_score) || score,
+              detected_skills: parsed.detected_skills || ['Software Engineering'],
+              recommended_skills_to_learn: parsed.missing_skills || ['System Architecture'],
+              portfolio_analyzed: Boolean(portfolioUrl),
+              matched_mentors: allMentors.slice(0, 3),
+              actionable_advice: parsed.actionable_advice || ['Quantify project metrics for ATS optimization.'],
+              ai_provider: `Groq Cloud AI (${groqModel})`
+            };
+          } else {
+            const errData = await response.json().catch(() => ({}));
+            lastGroqErr = errData.error?.message || `HTTP ${response.status}`;
+            console.error(`[Groq API Warning - ${groqModel}]: ${lastGroqErr}`);
+          }
+        } catch (groqErr) {
+          lastGroqErr = groqErr.message;
         }
+      }
 
-        const score = Number(parsed.ats_score || parsed.sde_fit_score) || 75;
-
-        return {
-          target_role: targetRole,
-          ats_score: score,
-          sde_fit_score: score,
-          keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 4),
-          impact_score: Number(parsed.impact_score) || Math.max(55, score - 6),
-          format_score: Number(parsed.format_score) || 88,
-          technical_depth_score: Number(parsed.technical_depth_score) || score,
-          detected_skills: Array.isArray(parsed.detected_skills) && parsed.detected_skills.length > 0 ? parsed.detected_skills : ['Technical Fundamentals'],
-          recommended_skills_to_learn: Array.isArray(parsed.missing_skills) && parsed.missing_skills.length > 0 ? parsed.missing_skills : ['System Architecture'],
-          portfolio_analyzed: Boolean(portfolioUrl),
-          matched_mentors: allMentors.slice(0, 3),
-          actionable_advice: Array.isArray(parsed.actionable_advice) && parsed.actionable_advice.length > 0 ? parsed.actionable_advice : ['Incorporate core missing industry keywords into your project experience.'],
-          ai_provider: `Google Gemini Multimodal AI (${activeModel})`
-        };
-      } else {
-        console.warn(`[Google Gemini AI Failed] ${lastApiErrorText}.`);
+      if (lastGroqErr) {
+        throw new ApiError(400, `Groq Cloud API Error: ${lastGroqErr}. Please check GROQ_API_KEY in server/.env`);
       }
     }
 
-    // 2. IF OPENAI_API_KEY is configured in .env, call ChatGPT OpenAI Engine
-    if (openAiApiKey) {
-      try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openAiApiKey}`
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'You are an expert AI ATS Resume Evaluator. Output valid JSON only with keys: ats_score (number 0-100), keyword_match_score, impact_score, format_score, technical_depth_score, detected_skills (array), missing_skills (array), actionable_advice (array).'
-              },
-              {
-                role: 'user',
-                content: `Evaluate resume text: "${resumeText}" for target role "${targetRole}". Portfolio: "${portfolioUrl}"`
-              }
-            ],
-            response_format: { type: 'json_object' }
-          })
-        });
-
-        if (response.ok) {
-          const aiData = await response.json();
-          const parsed = JSON.parse(aiData.choices[0]?.message?.content || '{}');
-          const score = parsed.ats_score || parsed.sde_fit_score || 82;
-
-          return {
-            target_role: targetRole,
-            ats_score: score,
-            sde_fit_score: score,
-            keyword_match_score: parsed.keyword_match_score || Math.min(98, score + 3),
-            impact_score: parsed.impact_score || Math.max(60, score - 5),
-            format_score: parsed.format_score || 90,
-            technical_depth_score: parsed.technical_depth_score || score,
-            detected_skills: parsed.detected_skills || ['Software Engineering'],
-            recommended_skills_to_learn: parsed.missing_skills || ['System Architecture'],
-            portfolio_analyzed: Boolean(portfolioUrl),
-            matched_mentors: allMentors.slice(0, 3),
-            actionable_advice: parsed.actionable_advice || ['Quantify your project achievements using metrics.'],
-            ai_provider: 'ChatGPT OpenAI GPT-4o Engine'
-          };
-        }
-      } catch (aiErr) {
-        console.warn('[OpenAI Warning] OpenAI API call failed:', aiErr.message);
-      }
+    // If no valid key is provided in server/.env, inform developer
+    if (!geminiKey || geminiKey.includes('your_gemini_key_here')) {
+      throw new ApiError(
+        400,
+        'External AI API Key missing! Please paste your real Google Gemini API Key into server/.env (GEMINI_API_KEY=AIzaSy...). Get a free key at https://aistudio.google.com/'
+      );
     }
 
-    // 3. FALLBACK: Real-Time Natural Language ATS Processing Engine
-    const textLower = (resumeText + ' ' + targetRole).toLowerCase();
+    // 3. FALLBACK: Comprehensive Built-In Intelligent ATS Analyzer Engine
+    const textLower = (cleanResumeText + ' ' + targetRole).toLowerCase();
     
-    // Software & Engineering skill keywords dictionary for dynamic natural language matching
+    // Skill dictionary across multiple engineering & tech domains
     const commonTechSkills = [
       'React', 'JavaScript', 'TypeScript', 'Node.js', 'Express', 'Python', 'Java', 'C++', 'C#', '.NET',
       'HTML', 'CSS', 'Tailwind', 'Bootstrap', 'SQL', 'MySQL', 'MongoDB', 'PostgreSQL', 'Redis',
       'Git', 'GitHub', 'AWS', 'Docker', 'Kubernetes', 'CI/CD', 'REST API', 'GraphQL',
       'Data Structures', 'Algorithms', 'System Design', 'OOP', 'Machine Learning', 'Data Science',
-      'SOLIDWORKS', 'AutoCAD', 'ANSYS', 'MATLAB', 'CAD', 'Thermodynamics', 'FEA', 'PLC'
+      'SOLIDWORKS', 'AutoCAD', 'ANSYS', 'MATLAB', 'CAD', 'Thermodynamics', 'FEA', 'PLC', 'VHDL'
     ];
 
     const detectedSkills = [];
     const missingSkills = [];
     const missingDomainIds = [];
 
-    // Detect skills dynamically from resume text
+    // Match skills dynamically
     commonTechSkills.forEach(skill => {
       if (textLower.includes(skill.toLowerCase())) {
         detectedSkills.push(skill);
       }
     });
 
-    if (dbDomains && dbDomains.length > 0) 
-      {
+    if (dbDomains && dbDomains.length > 0) {
       dbDomains.forEach(domain => {
         const domainNameLower = domain.name.toLowerCase();
         const isDetected = textLower.includes(domainNameLower);
@@ -306,11 +276,26 @@ Return RAW JSON ONLY with NO markdown code block formatting:
     }
 
     if (detectedSkills.length === 0) {
-      detectedSkills.push('Problem Solving', 'Technical Fundamentals', 'Engineering Concepts');
+      detectedSkills.push('Software Fundamentals', 'Problem Solving', 'Project Development', 'Technical Skills');
     }
 
+    // Target role specific keyword requirements & missing skills enhancement
+    const roleLower = targetRole.toLowerCase();
+    if (roleLower.includes('software') || roleLower.includes('sde') || roleLower.includes('developer')) {
+      if (!textLower.includes('system design')) missingSkills.unshift('System Design & Microservices');
+      if (!textLower.includes('data structures') && !textLower.includes('dsa')) missingSkills.unshift('Data Structures & Algorithms');
+      if (!textLower.includes('docker') && !textLower.includes('container')) missingSkills.unshift('Docker & Containerization');
+    } else if (roleLower.includes('data') || roleLower.includes('machine learning')) {
+      if (!textLower.includes('python')) missingSkills.unshift('Python & Data Analysis Libraries');
+      if (!textLower.includes('sql')) missingSkills.unshift('SQL Query Optimization');
+      if (!textLower.includes('scikit') && !textLower.includes('tensorflow')) missingSkills.unshift('Machine Learning Frameworks');
+    }
+
+    // Filter unique missing skills
+    const uniqueMissing = [...new Set(missingSkills)].slice(0, 5);
+
     const matchedCount = detectedSkills.length;
-    const baseAtsScore = Math.min(96, Math.max(55, Math.round(matchedCount * 6 + 50 + (portfolioUrl ? 6 : 0))));
+    const baseAtsScore = Math.min(95, Math.max(62, Math.round(matchedCount * 7 + 48 + (portfolioUrl ? 5 : 0))));
 
     const matchedMentors = allMentors
       .filter(m => m.expertise_domains.some(d => missingDomainIds.includes(d.id)))
@@ -323,18 +308,18 @@ Return RAW JSON ONLY with NO markdown code block formatting:
       ats_score: baseAtsScore,
       sde_fit_score: baseAtsScore,
       keyword_match_score: Math.min(98, baseAtsScore + 4),
-      impact_score: Math.max(50, baseAtsScore - 8),
-      format_score: 88,
+      impact_score: Math.max(52, baseAtsScore - 7),
+      format_score: 90,
       technical_depth_score: baseAtsScore,
       detected_skills: detectedSkills,
-      recommended_skills_to_learn: missingSkills.slice(0, 5),
+      recommended_skills_to_learn: uniqueMissing.length > 0 ? uniqueMissing : ['System Architecture', 'Cloud Deployment'],
       portfolio_analyzed: Boolean(portfolioUrl),
       matched_mentors: fallbackMentors,
       actionable_advice: [
-        `Align resume section headings with standard ATS formatting for "${targetRole}".`,
-        `Incorporate key target role keywords: ${missingSkills.slice(0, 3).join(', ') || 'System Design'}.`,
-        `Quantify achievements using bullet points (e.g., "Improved response time by 30%").`,
-        `Schedule a 1-on-1 resume review session with alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'}.`
+        `Align your resume structure strictly with standard ATS formatting for "${targetRole}".`,
+        `Add missing target role keywords: ${uniqueMissing.slice(0, 3).join(', ') || 'System Design'}.`,
+        `Quantify achievements in project descriptions (e.g., "Reduced latency by 35% using Redis caching").`,
+        `Connect with verified alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'} for a 1-on-1 resume review.`
       ],
       ai_provider: 'CampusBridge Real-Time AI ATS Engine'
     };

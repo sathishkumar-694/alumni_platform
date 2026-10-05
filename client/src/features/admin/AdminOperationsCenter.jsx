@@ -495,7 +495,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
               {matrix.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
-                  No active mentorship pairings recorded in database.
+                  No active mentorship pairings recorded.
                 </p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>

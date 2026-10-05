@@ -358,6 +358,9 @@ export const db = {
       );
       const rows = await queryMySQL('SELECT * FROM `announcements` WHERE `id` = ?', [id]);
       return rows[0];
+    },
+    delete: async (id) => {
+      return await queryMySQL('DELETE FROM `announcements` WHERE `id` = ?', [id]);
     }
   },
 

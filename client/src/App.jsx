@@ -177,7 +177,7 @@ const MainContent = () => {
             )}
 
             {/* Dedicated Recommended Alumni Mentors Tab */}
-            {activeTab === 'recommended_mentors' && (
+            {activeTab === 'recommended_mentors' && user?.role !== 'ADMIN' && (
               <RecommendedMentorsView
                 onRequestMentorship={(mentor) => setSelectedMentorForRequest(mentor)}
                 searchQuery={searchQuery}

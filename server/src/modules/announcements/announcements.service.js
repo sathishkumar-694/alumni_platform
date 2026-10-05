@@ -49,6 +49,23 @@ export class AnnouncementsService {
 
     return announcement;
   }
+
+  async deleteAnnouncement(user, id) {
+    if (user.role !== 'ADMIN') {
+      throw new ApiError(403, 'Only administrators can delete announcements');
+    }
+
+    await announcementsRepository.deleteAnnouncement(id);
+
+    await announcementsRepository.logAuditAction(
+      user.id,
+      'ANNOUNCEMENT_DELETED',
+      '',
+      `Deleted announcement '${id}'`
+    );
+
+    return { id };
+  }
 }
 
 export const announcementsService = new AnnouncementsService();

@@ -72,7 +72,7 @@ export const JobReferralPortal = () => {
 
       setShowPostJobModal(false);
       setNewJobForm({ title: '', company: '', location: '', experienceReq: '0 - 1 Yr', skills: '', description: '' });
-      showNotification('Internal Job Referral Drive posted directly to MySQL database! Visible to all users in real-time.', 'success');
+      showNotification('Internal Job Referral Drive posted successfully! Visible to all users in real-time.', 'success');
       fetchJobData();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -90,7 +90,7 @@ export const JobReferralPortal = () => {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem' }}>
         <div>
-          <span className="badge badge-cyan" style={{ marginBottom: '0.35rem' }}>Verified Alumni Hiring Drive (MySQL Real-Time)</span>
+          <span className="badge badge-cyan" style={{ marginBottom: '0.35rem' }}>Verified Alumni Hiring Drive</span>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)' }}>
             Alumni Job Referral Portal ({jobList.length} Active Drives)
           </h2>
@@ -113,11 +113,11 @@ export const JobReferralPortal = () => {
       {/* Job Referral Cards Grid */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-          Loading real-time job referral drives from MySQL database...
+          Loading real-time job referral drives...
         </div>
       ) : jobList.length === 0 ? (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          No active job referral drives posted in the database yet. Alumni mentors can post hiring drives above!
+          No active job referral drives posted yet. Alumni mentors can post hiring drives above!
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(370px, 1fr))', gap: '1.5rem' }}>

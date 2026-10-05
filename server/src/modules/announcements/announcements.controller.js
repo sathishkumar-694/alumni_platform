@@ -16,3 +16,10 @@ export const createAnnouncement = asyncHandler(async (req, res) => {
     new ApiResponse(201, result, 'Announcement published successfully')
   );
 });
+
+export const deleteAnnouncement = asyncHandler(async (req, res) => {
+  const result = await announcementsService.deleteAnnouncement(req.user, req.params.id);
+  return res.status(200).json(
+    new ApiResponse(200, result, 'Announcement deleted successfully')
+  );
+});

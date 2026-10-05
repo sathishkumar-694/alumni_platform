@@ -2,172 +2,246 @@ import React, { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { Sparkles, FileText, CheckCircle2, AlertTriangle, ArrowRight, UserPlus, Award, Zap, Upload, File, Loader2 } from 'lucide-react';
+import {
+  Sparkles,
+  Upload,
+  FileText,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  UserCheck,
+  Award,
+  Zap,
+  RefreshCw,
+  File,
+  Globe,
+  Building,
+  Check,
+  Loader2,
+  ChevronRight,
+  Compass,
+  Target
+} from 'lucide-react';
 
 export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
 
+  // Form inputs
+  const [targetRole, setTargetRole] = useState('Software Development Engineer (SDE-1)');
   const [resumeText, setResumeText] = useState('');
-  const [targetRole, setTargetRole] = useState('Software Development Engineer (SDE)');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
-  const [fileBase64, setFileBase64] = useState('');
-  const [fileMimeType, setFileMimeType] = useState('');
+  
+  // UI state
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
 
-  const handleFileUpload = (e) => {
+  // Preset job roles for 1-click selection
+  const presetRoles = [
+    'Software Development Engineer (SDE-1)',
+    'Full Stack Web Developer',
+    'Frontend React Engineer',
+    'Backend Node.js / Python Engineer',
+    'Data Analyst / Data Scientist',
+    'Cloud & DevOps Engineer',
+    'Mobile App Developer (Flutter/iOS)',
+    'Mechanical / CAD Engineer'
+  ];
+
+  // Client-side file reading & text extraction preview
+  const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Strict File Extension Validation: Allow ONLY PDF (.pdf) and Word (.doc, .docx) documents
     const fileNameLower = file.name.toLowerCase();
-    const isPdf = fileNameLower.endsWith('.pdf') || file.type === 'application/pdf';
-    const isWord = fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx') || file.type.includes('word') || file.type.includes('officedocument');
+    const isPdf = fileNameLower.endsWith('.pdf');
+    const isWord = fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx');
+    const isTxt = fileNameLower.endsWith('.txt');
 
-    if (!isPdf && !isWord) {
-      showNotification('Invalid file format! Please upload a PDF (.pdf) or Word document (.doc, .docx).', 'error');
+    if (!isPdf && !isWord && !isTxt) {
+      showNotification('Unsupported format! Please upload a PDF (.pdf), Word (.doc, .docx), or Text (.txt) file.', 'error');
       return;
     }
 
     setSelectedFile(file);
-    setFileMimeType(isPdf ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 
-    // 1. Read Base64 binary data in background for Gemini Multimodal AI
-    const base64Reader = new FileReader();
-    base64Reader.onload = (event) => {
-      const dataUrl = event.target?.result || '';
-      if (typeof dataUrl === 'string') {
-        const base64Data = dataUrl.split(',')[1] || '';
-        setFileBase64(base64Data);
-      }
-    };
-    base64Reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const rawResult = event.target?.result || '';
+      let extracted = '';
 
-    // 2. Perform text extraction
-    const textReader = new FileReader();
-    textReader.onload = (event) => {
-      const text = event.target?.result || '';
-      if (typeof text === 'string' && text.trim()) {
-        if (isWord) {
-          // Extract text from Word docx XML tags <w:t>...</w:t>
-          const matches = [...text.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/gi)].map(m => m[1]);
-          if (matches.length > 0) {
-            const cleanDocxText = matches.join(' ').replace(/\s+/g, ' ').trim();
-            setResumeText(`[Attached Word Document: ${file.name}]\n${cleanDocxText.slice(0, 4000)}`);
+      if (typeof rawResult === 'string') {
+        if (isTxt) {
+          extracted = rawResult;
+        } else if (isWord) {
+          const xmlMatches = [...rawResult.matchAll(/<w:t[^>]*>(.*?)<\/w:t>/gi)].map(m => m[1]);
+          if (xmlMatches.length > 0) {
+            extracted = xmlMatches.join(' ');
           } else {
-            const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ').replace(/\s+/g, ' ').trim();
-            if (cleanText.length > 10) {
-              setResumeText(`[Attached Document: ${file.name}]\n${cleanText.slice(0, 4000)}`);
-            }
+            extracted = rawResult.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
           }
         } else {
-          setResumeText(`[Attached PDF Document: ${file.name}]`);
+          extracted = rawResult.replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ');
         }
       }
-    };
-    textReader.readAsText(file);
 
-    showNotification(`Attached ${isPdf ? 'PDF' : 'Word'} document '${file.name}'! Ready for AI analysis.`, 'success');
+      const cleanText = extracted.replace(/\s+/g, ' ').trim();
+      
+      if (cleanText.length > 15) {
+        setResumeText(cleanText);
+        showNotification(`Extracted resume text from '${file.name}' (${cleanText.length} chars)`, 'success');
+      } else {
+        setResumeText(`[Attached Document: ${file.name}]\n(You can paste or edit your key resume skills, experience, and project bullet points directly below)`);
+        showNotification(`Attached '${file.name}'. You can verify or edit your resume text below.`, 'success');
+      }
+    };
+
+    reader.readAsText(file);
   };
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
-    if (!selectedFile && !resumeText.trim() && !fileBase64) {
-      showNotification('Please upload your Resume PDF or Word document (.pdf, .doc, .docx)', 'error');
+
+    const textToSubmit = resumeText.trim();
+    if (!selectedFile && !textToSubmit) {
+      showNotification('Please upload your Resume document or paste your resume content below.', 'error');
       return;
     }
 
     setLoading(true);
+
     try {
       const res = await apiClient('/recommendation/analyze-resume', {
         method: 'POST',
         body: JSON.stringify({
-          resumeText: resumeText || `[Attached Resume Document: ${selectedFile?.name}]`,
+          resumeText: textToSubmit || `Resume File: ${selectedFile?.name}`,
           targetRole,
-          portfolioUrl,
-          fileBase64,
-          fileMimeType
+          portfolioUrl
         })
       });
+
       setAnalysisResult(res.data);
-      showNotification('Resume document analyzed with Google Gemini AI!', 'success');
+      showNotification('AI ATS Resume & Industry Fit Analysis completed!', 'success');
     } catch (err) {
-      showNotification(err.message, 'error');
+      showNotification(err.message || 'Failed to analyze resume', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleReset = () => {
+    setAnalysisResult(null);
+    setSelectedFile(null);
+    setResumeText('');
+    setPortfolioUrl('');
+  };
+
+  const getScoreBadge = (score) => {
+    if (score >= 80) return { label: 'EXCELLENT ATS MATCH', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' };
+    if (score >= 60) return { label: 'GOOD MATCH - NEEDS FEW KEYWORDS', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' };
+    return { label: 'NEEDS ATS OPTIMIZATION', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' };
+  };
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1100px', margin: '2rem auto', padding: '0 1.5rem' }}>
       
       {/* Header Banner */}
       <div
+        className="glass-panel"
         style={{
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #311b92 100%)',
-          padding: '2rem',
-          borderRadius: '20px',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311b92 100%)',
+          padding: '2.25rem',
+          borderRadius: '24px',
           color: '#ffffff',
           marginBottom: '2rem',
-          boxShadow: 'var(--shadow-lg)',
-          border: '1px solid #312e81'
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          boxShadow: 'var(--shadow-lg)'
         }}
       >
-        <span className="badge badge-purple" style={{ marginBottom: '0.5rem', background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc' }}>
-          <Zap size={14} /> Google Gemini AI Document Engine
-        </span>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, marginTop: '0.35rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <span className="badge" style={{ background: 'rgba(168, 85, 247, 0.25)', color: '#d8b4fe', borderColor: '#a855f7' }}>
+            <Zap size={14} /> AI Engine
+          </span>
+          <span className="badge badge-emerald">Real-Time Evaluation</span>
+        </div>
+
+        <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', margin: '0.25rem 0 0.5rem' }}>
           🤖 AI Resume & Industry Fit Analyzer
-        </h1>
-        <p style={{ fontSize: '0.95rem', color: '#cbd5e1', marginTop: '0.35rem', maxWidth: '750px' }}>
-          Upload your PDF or Word resume document to analyze your technical skills, discover missing skill gaps, and match with verified alumni mentors.
+        </h2>
+        <p style={{ fontSize: '0.95rem', color: '#cbd5e1', maxWidth: '780px', lineHeight: 1.5, margin: 0 }}>
+          Upload your resume or paste your experience content to calculate your ATS compatibility match, detect missing industry keywords, and match with verified alumni mentors.
         </p>
       </div>
 
-      {/* Input Form vs Result View */}
+      {/* INPUT FORM VIEW */}
       {!analysisResult ? (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '20px', padding: '2rem', boxShadow: 'var(--shadow-md)' }}>
+        <div className="glass-panel" style={{ padding: '2rem', borderRadius: '20px' }}>
           <form onSubmit={handleAnalyze}>
             
-            {/* Target Role Input */}
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Target Role / Desired Job Title
+            {/* Step 1: Target Role Selection */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Target size={16} color="var(--primary)" /> 1. Select Target Job Role / Desired Title
               </label>
+
+              {/* Preset Role Quick Selector Pills */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                {presetRoles.map(role => (
+                  <button
+                    type="button"
+                    key={role}
+                    onClick={() => setTargetRole(role)}
+                    style={{
+                      background: targetRole === role ? 'var(--primary)' : 'var(--bg-subtle)',
+                      color: targetRole === role ? '#ffffff' : 'var(--text-main)',
+                      border: targetRole === role ? '1px solid var(--primary)' : '1px solid var(--border-card)',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '20px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+
               <input
                 type="text"
                 className="form-input"
-                placeholder="e.g. Software Engineer (SDE-1), Mechanical Engineer, Data Analyst, Product Manager"
+                placeholder="Or type custom role (e.g. Cybersecurity Specialist, ML Engineer)"
                 value={targetRole}
                 onChange={(e) => setTargetRole(e.target.value)}
                 required
-                style={{ height: '46px', fontSize: '0.95rem' }}
+                style={{ height: '44px', fontSize: '0.9rem' }}
               />
             </div>
 
-            {/* Strict PDF / Word Document Drop Zone */}
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Upload Resume Document (PDF / Word Only)
+            {/* Step 2: File Upload / Drag Zone */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Upload size={16} color="var(--primary)" /> 2. Upload Resume File (.pdf, .docx, .doc, .txt)
               </label>
+
               <div
                 style={{
-                  border: selectedFile ? '2px solid var(--accent-emerald)' : '2px dashed var(--border-card)',
+                  border: '2px dashed var(--border-card)',
                   borderRadius: '16px',
-                  padding: '2.5rem 2rem',
+                  padding: '1.75rem',
                   textAlign: 'center',
-                  background: selectedFile ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-subtle)',
+                  background: selectedFile ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-subtle)',
                   cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
                 }}
               >
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                  onChange={handleFileUpload}
+                  accept=".pdf,.doc,.docx,.txt"
+                  onChange={handleFileChange}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -178,245 +252,372 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
                     cursor: 'pointer'
                   }}
                 />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                  {selectedFile ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                      <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <FileText size={28} color="var(--accent-emerald)" />
-                      </div>
-                      <p style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--accent-emerald)' }}>
-                        {selectedFile.name}
-                      </p>
-                      <span className="badge badge-emerald" style={{ fontSize: '0.8rem' }}>
-                        {(selectedFile.size / 1024).toFixed(1)} KB • {selectedFile.name.endsWith('.pdf') ? 'PDF Document' : 'Word Document'} Attached
-                      </span>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                        Click or drop another file to replace
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Upload size={30} color="var(--primary)" />
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                          Click or Drag & Drop PDF or Word Resume File Here
-                        </p>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-subtle)', marginTop: '0.25rem' }}>
-                          Accepts <strong>.pdf</strong>, <strong>.doc</strong>, and <strong>.docx</strong> files only
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </div>
+
+                {selectedFile ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <FileText size={36} color="var(--primary)" />
+                    <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem', margin: 0 }}>
+                      Selected File: {selectedFile.name}
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', margin: 0 }}>
+                      {(selectedFile.size / 1024).toFixed(1)} KB • Click or drag to replace file
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <Upload size={32} color="var(--text-subtle)" />
+                    <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem', margin: 0 }}>
+                      Click to Browse or Drag & Drop PDF / Word Resume Here
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-subtle)', margin: 0 }}>
+                      Supports PDF (.pdf), Word (.doc, .docx) & Plain Text (.txt)
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Optional Resume Text / Notes */}
-            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Additional Key Skills or Raw Resume Text (Optional)
-              </label>
+            {/* Step 3: Text Preview & Manual Editing Area */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                  <FileText size={16} color="var(--primary)" /> 3. Resume Content & Key Skills Text Preview
+                </label>
+
+                {resumeText.trim() && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>
+                    {resumeText.length} characters captured
+                  </span>
+                )}
+              </div>
+
               <textarea
-                className="form-input"
-                rows={3}
-                placeholder="Paste key skills, project summaries, or custom resume text here..."
+                className="form-textarea"
+                rows={6}
+                placeholder="Paste raw resume text, work experience, project descriptions, and technical skills here if not uploading a file..."
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                style={{ fontSize: '0.875rem' }}
+                style={{ fontSize: '0.85rem', lineHeight: '1.5' }}
               />
             </div>
 
-            {/* Portfolio / GitHub URL (Optional) */}
+            {/* Step 4: Optional Portfolio Link */}
             <div className="form-group" style={{ marginBottom: '2rem' }}>
-              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700 }}>
-                Portfolio / GitHub Profile URL (Optional)
+              <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Globe size={14} color="var(--text-subtle)" /> Portfolio / GitHub / LinkedIn Profile URL (Optional)
               </label>
               <input
                 type="url"
                 className="form-input"
-                placeholder="https://github.com/username or https://portfolio.dev"
+                placeholder="https://github.com/yourusername or https://linkedin.com/in/yourprofile"
                 value={portfolioUrl}
                 onChange={(e) => setPortfolioUrl(e.target.value)}
-                style={{ height: '44px' }}
+                style={{ height: '40px', fontSize: '0.85rem' }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="submit" className="btn btn-primary" disabled={loading} style={{ padding: '0.75rem 2rem', fontSize: '0.95rem' }}>
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="spin-animation" /> Analyzing Resume Document with AI...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={18} /> Analyze Resume Document
-                  </>
-                )}
-              </button>
-            </div>
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                fontSize: '1rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="spin-animation" /> Analyzing Resume via AI Engine...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} /> Analyze Resume & Calculate ATS Match
+                </>
+              )}
+            </button>
           </form>
         </div>
       ) : (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: '20px', padding: '2rem', boxShadow: 'var(--shadow-md)' }}>
-          {/* ATS Overall Score Banner */}
-          <div
-            style={{
-              background: 'linear-gradient(135deg, #1e1b4b 0%, #311b92 100%)',
-              padding: '1.75rem',
-              borderRadius: '16px',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1.5rem',
-              border: '1px solid #312e81'
-            }}
-          >
-            <div>
-              <span style={{ fontSize: '0.75rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
-                TARGET ROLE: {analysisResult.target_role} • ✨ {analysisResult.ai_provider || 'Google Gemini AI'}
-              </span>
-              <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '0.25rem' }}>
-                🤖 ATS Resume Compatibility Score
-              </h3>
-              <p style={{ fontSize: '0.9rem', color: '#cbd5e1', marginTop: '0.25rem' }}>
-                {(analysisResult.ats_score || analysisResult.sde_fit_score) >= 80
-                  ? '🚀 High ATS Compatibility! Resume strongly matches target role keywords.'
-                  : (analysisResult.ats_score || analysisResult.sde_fit_score) >= 65
-                  ? '💡 Moderate ATS Match! Key skills detected, minor optimizations recommended.'
-                  : '⚠️ Low ATS Keyword Match! Review missing skill gaps & formatting advice below.'}
-              </p>
-            </div>
 
-            <div style={{ textAlign: 'center', background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(8px)', padding: '1rem 1.75rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.2)' }}>
-              <p style={{ fontSize: '2.75rem', fontWeight: 900, color: '#38bdf8', lineHeight: 1 }}>
-                {analysisResult.ats_score || analysisResult.sde_fit_score}%
-              </p>
-              <span style={{ fontSize: '0.75rem', color: '#93c5fd', textTransform: 'uppercase', fontWeight: 700 }}>ATS Score</span>
-            </div>
-          </div>
-
-          {/* 4 ATS Sub-Scores Card Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>🎯 Keyword Match</span>
-              <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--primary)', marginTop: '0.2rem' }}>
-                {analysisResult.keyword_match_score || Math.min(98, (analysisResult.ats_score || 75) + 4)}%
-              </p>
-            </div>
-
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>📊 Impact & Metrics</span>
-              <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-purple)', marginTop: '0.2rem' }}>
-                {analysisResult.impact_score || Math.max(55, (analysisResult.ats_score || 75) - 6)}%
-              </p>
-            </div>
-
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>📝 ATS Formatting</span>
-              <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-emerald)', marginTop: '0.2rem' }}>
-                {analysisResult.format_score || 88}%
-              </p>
-            </div>
-
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>⚡ Technical Depth</span>
-              <p style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-amber)', marginTop: '0.2rem' }}>
-                {analysisResult.technical_depth_score || (analysisResult.ats_score || 75)}%
-              </p>
-            </div>
-          </div>
-
-          {/* Skill Breakdown Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-            
-            {/* Detected Strengths */}
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: '14px', border: '1px solid var(--border-card)' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-emerald)', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CheckCircle2 size={18} /> Verified Skills Found in Resume ({(analysisResult.detected_skills || []).length})
-              </h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {(analysisResult.detected_skills || []).map(skill => (
-                  <span key={skill} className="badge badge-emerald" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Missing Skills / Keyword Gaps */}
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: '14px', border: '1px solid var(--border-card)' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-amber)', marginBottom: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <AlertTriangle size={18} /> Missing ATS Keywords for "{analysisResult.target_role}" ({(analysisResult.recommended_skills_to_learn || []).length})
-              </h4>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                {(analysisResult.recommended_skills_to_learn || []).map(skill => (
-                  <span key={skill} className="badge badge-amber" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}>
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Actionable ATS Recommendations */}
-          {analysisResult.actionable_advice && analysisResult.actionable_advice.length > 0 && (
-            <div style={{ background: 'var(--bg-subtle)', padding: '1.5rem', borderRadius: '14px', border: '1px solid var(--border-card)', marginBottom: '2rem' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Sparkles size={18} /> Actionable ATS Optimization Recommendations
-              </h4>
-              <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: 1.6 }}>
-                {(analysisResult.actionable_advice || []).map((item, idx) => (
-                  <li key={idx} style={{ marginBottom: '0.35rem' }}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Matched Alumni Mentors to Bridge Gaps */}
-          <div style={{ marginBottom: '2rem' }}>
-            <h4 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Award size={20} color="var(--primary)" /> Mentors Specially Matched to Help You Master Missing Skill Gaps
-            </h4>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-              {(analysisResult.matched_mentors || []).map(m => (
-                <div
-                  key={m.id}
-                  style={{
-                    background: 'var(--bg-subtle)',
-                    padding: '1.25rem',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-card)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div style={{ marginBottom: '1rem' }}>
-                    <p style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{m.name}</p>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      {m.profile?.designation} at {m.profile?.company} ({m.profile?.experience_years} Yrs Exp)
-                    </p>
+        /* ========================================================
+            ANALYSIS RESULT DASHBOARD
+        ======================================================== */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* TOP CARD: OVERALL ATS SCORE & ROLE MATCH */}
+          {(() => {
+            const badge = getScoreBadge(analysisResult.ats_score);
+            return (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: '2rem',
+                  borderRadius: '24px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '2rem',
+                  alignItems: 'center',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-card)'
+                }}
+              >
+                {/* Score Circular Gauge */}
+                <div style={{ textAlign: 'center', padding: '1rem', borderRight: '1px solid var(--border-card)' }}>
+                  <div
+                    style={{
+                      width: '130px',
+                      height: '130px',
+                      borderRadius: '50%',
+                      background: `conic-gradient(${badge.color} ${analysisResult.ats_score * 3.6}deg, var(--bg-subtle) 0deg)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 1rem',
+                      boxShadow: '0 0 20px rgba(99, 102, 241, 0.2)'
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '106px',
+                        height: '106px',
+                        borderRadius: '50%',
+                        background: 'var(--bg-card)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <span style={{ fontSize: '2.25rem', fontWeight: 900, color: 'var(--text-main)', lineHeight: 1 }}>
+                        {analysisResult.ats_score}%
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-subtle)', fontWeight: 700, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+                        ATS MATCH
+                      </span>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => onRequestMentorship?.(m)}
-                    className="btn btn-primary btn-sm"
-                    style={{ width: '100%' }}
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.35rem 0.85rem',
+                      borderRadius: '20px',
+                      background: badge.bg,
+                      color: badge.color,
+                      fontSize: '0.78rem',
+                      fontWeight: 800
+                    }}
                   >
-                    <UserPlus size={14} /> Request Mentorship
-                  </button>
+                    {badge.label}
+                  </span>
+                </div>
+
+                {/* Target Role & Engine Metadata */}
+                <div>
+                  <span className="badge badge-purple" style={{ marginBottom: '0.5rem' }}>
+                    Target Role Analysis
+                  </span>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                    {analysisResult.target_role}
+                  </h3>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1rem' }}>
+                    Evaluated by <strong>{analysisResult.ai_provider || 'CampusBridge AI Engine'}</strong>. Keywords, formatting, technical depth, and impact verbiage were compared against standard engineering hiring benchmarks.
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <button onClick={handleReset} className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <RefreshCw size={14} /> Analyze Another Resume
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* SUB-SCORES BREAKDOWN GRID */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem' }}>
+            <div className="glass-panel" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>ATS Keyword Coverage</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--primary)' }}>{analysisResult.keyword_match_score}%</p>
+              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                <div style={{ width: `${analysisResult.keyword_match_score}%`, height: '100%', background: 'var(--primary)' }} />
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Measurable Impact & Metrics</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-purple)' }}>{analysisResult.impact_score}%</p>
+              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                <div style={{ width: `${analysisResult.impact_score}%`, height: '100%', background: 'var(--accent-purple)' }} />
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>ATS Format & Readability</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-emerald)' }}>{analysisResult.format_score}%</p>
+              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                <div style={{ width: `${analysisResult.format_score}%`, height: '100%', background: 'var(--accent-emerald)' }} />
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '1.25rem' }}>
+              <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Technical Depth & Relevance</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--accent-amber)' }}>{analysisResult.technical_depth_score}%</p>
+              <div style={{ width: '100%', height: '6px', background: 'var(--bg-subtle)', borderRadius: '3px', overflow: 'hidden', marginTop: '0.5rem' }}>
+                <div style={{ width: `${analysisResult.technical_depth_score}%`, height: '100%', background: 'var(--accent-amber)' }} />
+              </div>
+            </div>
+          </div>
+
+          {/* DETECTED SKILLS VS MISSING KEYWORDS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+            
+            {/* Detected Skills */}
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '1.1rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={18} color="#059669" /> Verified Skills Found in Resume ({(analysisResult.detected_skills || []).length})
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {(analysisResult.detected_skills || []).map((skill, idx) => (
+                  <span key={idx} className="badge badge-emerald" style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}>
+                    <Check size={12} /> {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Missing Keywords */}
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
+              <h4 style={{ fontSize: '1.1rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertTriangle size={18} color="#d97706" /> Critical Missing Keywords for {analysisResult.target_role}
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {(analysisResult.recommended_skills_to_learn || []).map((skill, idx) => (
+                  <span key={idx} className="badge badge-purple" style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}>
+                    + {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ACTIONABLE AI OPTIMIZATION ADVICE */}
+          <div className="glass-panel" style={{ padding: '1.75rem', borderRadius: '20px' }}>
+            <h4 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Sparkles size={20} color="var(--primary)" /> Actionable AI Optimization Checklist
+            </h4>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {(analysisResult.actionable_advice || []).map((tip, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-card)'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      background: 'var(--primary)',
+                      color: '#ffffff',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}
+                  >
+                    {idx + 1}
+                  </div>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-main)', margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+                    {tip}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-            <button onClick={() => { setAnalysisResult(null); setSelectedFile(null); }} className="btn btn-secondary" style={{ padding: '0.6rem 1.5rem' }}>
-              Analyze Another Resume Document
+          {/* MATCHED VERIFIED ALUMNI MENTORS FOR 1-ON-1 GUIDANCE */}
+          {(analysisResult.matched_mentors || []).length > 0 && (
+            <div className="glass-panel" style={{ padding: '1.75rem', borderRadius: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <div>
+                  <h4 style={{ fontSize: '1.2rem', color: 'var(--text-main)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Award size={20} color="var(--primary)" /> Recommended Alumni Mentors Matched for Your Target Role
+                  </h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                    Get 1-on-1 resume reviews and career guidance from alumni working in target engineering domains.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
+                {analysisResult.matched_mentors.map((mentor) => (
+                  <div
+                    key={mentor.id}
+                    style={{
+                      padding: '1.25rem',
+                      borderRadius: '14px',
+                      background: 'var(--bg-subtle)',
+                      border: '1px solid var(--border-card)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                        <div>
+                          <h5 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                            {mentor.name}
+                          </h5>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, margin: '0.2rem 0 0 0' }}>
+                            {mentor.profile?.designation} at {mentor.profile?.company}
+                          </p>
+                        </div>
+                        <span className="badge badge-emerald">Verified Alumni</span>
+                      </div>
+
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                        {mentor.profile?.bio || 'Experienced software mentor passionate about guiding student careers.'}
+                      </p>
+                    </div>
+
+                    {onRequestMentorship && (
+                      <button
+                        onClick={() => onRequestMentorship(mentor)}
+                        className="btn btn-primary btn-sm"
+                        style={{ width: '100%', marginTop: '0.5rem' }}
+                      >
+                        <UserCheck size={14} /> Request 1-on-1 Resume Mentorship
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ACTION FOOTER */}
+          <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+            <button onClick={handleReset} className="btn btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '0.95rem' }}>
+              <RefreshCw size={16} /> Analyze Another Resume Document
             </button>
           </div>
         </div>

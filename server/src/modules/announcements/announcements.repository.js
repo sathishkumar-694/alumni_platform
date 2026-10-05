@@ -17,6 +17,10 @@ export class AnnouncementsRepository {
     return await db.announcements.create(announcementData);
   }
 
+  async deleteAnnouncement(id) {
+    return await db.announcements.delete(id);
+  }
+
   async logAuditAction(adminId, action, targetUserId, details) {
     return await db.auditLogs.log(adminId, action, targetUserId, details);
   }

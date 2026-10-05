@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { Bell, Megaphone, Plus, Calendar, Tag, ShieldCheck } from 'lucide-react';
+import { Bell, Megaphone, Plus, Calendar, Tag, ShieldCheck, Trash2 } from 'lucide-react';
 
 export const AnnouncementFeed = () => {
   const { user } = useAuth();
@@ -50,6 +50,19 @@ export const AnnouncementFeed = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) {
+      return;
+    }
+    try {
+      await apiClient(`/announcements/${id}`, { method: 'DELETE' });
+      showNotification('Announcement deleted successfully!', 'success');
+      fetchAnnouncements();
+    } catch (err) {
+      showNotification(err.message || 'Failed to delete announcement', 'error');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '1000px', margin: '2rem auto', padding: '0 1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -86,8 +99,32 @@ export const AnnouncementFeed = () => {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
-                  <ShieldCheck size={14} color="var(--primary)" /> Posted by {ann.author_name} ({ann.author_role})
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                    <ShieldCheck size={14} color="var(--primary)" /> Posted by {ann.author_name} ({ann.author_role})
+                  </div>
+
+                  {user?.role === 'ADMIN' && (
+                    <button
+                      onClick={() => handleDelete(ann.id)}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#ef4444',
+                        padding: '0.25rem 0.6rem',
+                        borderRadius: '6px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                      title="Delete Announcement"
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  )}
                 </div>
               </div>
 

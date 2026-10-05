@@ -44,7 +44,18 @@ export class MentorshipService {
     }
 
     if (action === 'ACCEPT') {
+      const allActive = await mentorshipRepository.findAllActiveMentorships();
+      const existingActive = allActive.find(a => 
+        String(a.student_id) === String(request.student_id) && 
+        String(a.mentor_id) === String(request.mentor_id) && 
+        a.status === 'ACTIVE'
+      );
+
       await mentorshipRepository.updateRequest(requestId, { status: 'ACCEPTED' });
+
+      if (existingActive) {
+        return existingActive;
+      }
 
       const activeMentorship = await mentorshipRepository.createActiveMentorship({
         student_id: request.student_id,
@@ -133,7 +144,17 @@ export class MentorshipService {
       userActive = allActive;
     }
 
-    return await Promise.all(userActive.map(async (a) => {
+    // Deduplicate active mentorship records by unique student + mentor + status
+    const uniqueMap = new Map();
+    userActive.forEach(a => {
+      const key = `${a.student_id}_${a.mentor_id}_${a.status}`;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, a);
+      }
+    });
+    const deduplicatedActive = Array.from(uniqueMap.values());
+
+    return await Promise.all(deduplicatedActive.map(async (a) => {
       const student = await mentorshipRepository.findUserById(a.student_id);
       const studentProfile = await mentorshipRepository.getStudentProfile(a.student_id);
       const mentor = await mentorshipRepository.findUserById(a.mentor_id);

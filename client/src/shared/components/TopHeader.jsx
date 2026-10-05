@@ -286,7 +286,7 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-card)' }}>
                     <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Bell size={16} color="var(--primary)" /> MySQL Notifications
+                      <Bell size={16} color="var(--primary)" /> Notifications
                     </h4>
                     {unreadCount > 0 && (
                       <button
@@ -323,7 +323,7 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
                       ))
                     ) : (
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>
-                        No notifications found in database.
+                        No notifications found.
                       </p>
                     )}
                   </div>

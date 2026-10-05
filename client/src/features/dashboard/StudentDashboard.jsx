@@ -234,39 +234,49 @@ export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
 
-          {/* Sent Mentorship Requests Table */}
-          {myRequests.length > 0 && (
-            <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '1rem' }}>
-                Your Sent Mentorship Requests ({myRequests.length})
-              </h3>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '0.75rem' }}>Alumni Mentor</th>
-                      <th style={{ padding: '0.75rem' }}>Domain</th>
-                      <th style={{ padding: '0.75rem' }}>Requested Date</th>
-                      <th style={{ padding: '0.75rem' }}>Status</th>
+      {/* SECTION 2: SENT MENTORSHIP REQUESTS (STANDALONE OR DASHBOARD) */}
+      {(activeSection === 'dashboard' || activeSection === 'home' || activeSection === 'requests') && (
+        <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700, marginBottom: '1rem' }}>
+            Your Sent Mentorship Requests ({myRequests.length})
+          </h3>
+          {myRequests.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+              <MessageSquare size={32} color="var(--primary)" style={{ marginBottom: '0.5rem' }} />
+              <p style={{ margin: 0, fontSize: '0.9rem' }}>You haven't sent any mentorship requests yet.</p>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                Explore Recommended Mentors or the Technical Domain Directory to request mentorship!
+              </p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    <th style={{ padding: '0.75rem' }}>Alumni Mentor</th>
+                    <th style={{ padding: '0.75rem' }}>Domain</th>
+                    <th style={{ padding: '0.75rem' }}>Requested Date</th>
+                    <th style={{ padding: '0.75rem' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myRequests.map((req) => (
+                    <tr key={req.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
+                      <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{req.mentor_name}</td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{req.domain_name}</td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-subtle)' }}>{new Date(req.requested_at).toLocaleDateString()}</td>
+                      <td style={{ padding: '0.75rem' }}>
+                        <span className={`badge ${req.status === 'ACCEPTED' ? 'badge-emerald' : req.status === 'REJECTED' ? 'badge-rose' : 'badge-amber'}`}>
+                          {req.status}
+                        </span>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {myRequests.map((req) => (
-                      <tr key={req.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{req.mentor_name}</td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{req.domain_name}</td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-subtle)' }}>{new Date(req.requested_at).toLocaleDateString()}</td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span className={`badge ${req.status === 'ACCEPTED' ? 'badge-emerald' : req.status === 'REJECTED' ? 'badge-rose' : 'badge-amber'}`}>
-                            {req.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
