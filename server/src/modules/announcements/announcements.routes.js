@@ -12,7 +12,6 @@ router.use(verifyJWT);
 router.post(
   '/',
   authorize('ADMIN', 'ALUMNI'),
-  requireVerified,
   validateBody(['title', 'content']),
   createAnnouncement
 );

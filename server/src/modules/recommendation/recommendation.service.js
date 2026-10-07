@@ -49,7 +49,7 @@ export class RecommendationService {
         shared_domains_count: sharedDomains.length,
         match_score: matchPercentage
       };
-    }));
+    })); 
 
     recommended.sort((a, b) => b.match_score - a.match_score);
     return recommended;
@@ -104,69 +104,69 @@ Return RAW JSON ONLY with NO markdown syntax:
   "actionable_advice": ["<improvement1>", "<improvement2>"]
 }`;
 
+    let externalAiErrorNote = '';
+
     // ---------------------------------------------------------
     // PRIMARY EXTERNAL AI SERVICE: GOOGLE GEMINI AI
     // ---------------------------------------------------------
     if (geminiKey && !geminiKey.includes('your_gemini_key_here')) {
       console.log('[Gemini API Initiated] Calling Google Gemini API with key from server/.env...');
-      const geminiModels = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.0-pro'];
+      // Officially supported active Gemini models
+      const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'];
       let lastGeminiErr = '';
+      let keyOrAuthErr = '';
 
       for (const modelName of geminiModels) {
-        // Try both v1beta and v1 endpoints
-        const endpoints = [
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
-          `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${geminiKey}`
-        ];
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+          });
 
-        for (const url of endpoints) {
-          try {
-            const res = await fetch(url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': geminiKey
-              },
-              body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-            });
+          if (res.ok) {
+            const geminiData = await res.json();
+            let rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
 
-            if (res.ok) {
-              const geminiData = await res.json();
-              let rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-              rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            let parsed = JSON.parse(rawText);
+            const score = Number(parsed.ats_score || parsed.sde_fit_score) || 78;
 
-              let parsed = JSON.parse(rawText);
-              const score = Number(parsed.ats_score || parsed.sde_fit_score) || 78;
-
-              return {
-                target_role: targetRole,
-                ats_score: score,
-                sde_fit_score: score,
-                keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 4),
-                impact_score: Number(parsed.impact_score) || Math.max(55, score - 6),
-                format_score: Number(parsed.format_score) || 88,
-                technical_depth_score: Number(parsed.technical_depth_score) || score,
-                detected_skills: Array.isArray(parsed.detected_skills) && parsed.detected_skills.length > 0 ? parsed.detected_skills : ['Technical Fundamentals'],
-                recommended_skills_to_learn: Array.isArray(parsed.missing_skills) && parsed.missing_skills.length > 0 ? parsed.missing_skills : ['System Architecture'],
-                portfolio_analyzed: Boolean(portfolioUrl),
-                matched_mentors: allMentors.slice(0, 3),
-                actionable_advice: Array.isArray(parsed.actionable_advice) && parsed.actionable_advice.length > 0 ? parsed.actionable_advice : ['Incorporate core missing industry keywords into your project experience.'],
-                ai_provider: `Google Gemini AI (${modelName})`
-              };
-            } else {
-              const errData = await res.json().catch(() => ({}));
-              lastGeminiErr = errData.error?.message || `HTTP ${res.status}`;
-              console.error(`[Gemini API Warning - ${modelName}]: ${lastGeminiErr}`);
+            return {
+              target_role: targetRole,
+              ats_score: score,
+              sde_fit_score: score,
+              keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 4),
+              impact_score: Number(parsed.impact_score) || Math.max(55, score - 6),
+              format_score: Number(parsed.format_score) || 88,
+              technical_depth_score: Number(parsed.technical_depth_score) || score,
+              detected_skills: Array.isArray(parsed.detected_skills) && parsed.detected_skills.length > 0 ? parsed.detected_skills : ['Technical Fundamentals'],
+              recommended_skills_to_learn: Array.isArray(parsed.missing_skills) && parsed.missing_skills.length > 0 ? parsed.missing_skills : ['System Architecture'],
+              portfolio_analyzed: Boolean(portfolioUrl),
+              matched_mentors: allMentors.slice(0, 3),
+              actionable_advice: Array.isArray(parsed.actionable_advice) && parsed.actionable_advice.length > 0 ? parsed.actionable_advice : ['Incorporate core missing industry keywords into your project experience.'],
+              ai_provider: `Google Gemini AI (${modelName})`
+            };
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            const msg = errData.error?.message || `HTTP ${res.status}`;
+            lastGeminiErr = msg;
+            if (res.status === 400 || res.status === 401 || res.status === 403 || msg.toLowerCase().includes('key') || msg.toLowerCase().includes('quota')) {
+              keyOrAuthErr = msg;
             }
-          } catch (err) {
-            lastGeminiErr = err.message;
-            console.warn(`[Gemini API Exception - ${modelName}]:`, err.message);
+            console.error(`[Gemini API Warning - ${modelName}]: ${msg}`);
           }
+        } catch (err) {
+          lastGeminiErr = err.message;
+          console.warn(`[Gemini API Exception - ${modelName}]:`, err.message);
         }
       }
 
-      // If Gemini Key was provided, throw Gemini error directly instead of falling back to Groq
-      throw new ApiError(400, `Google Gemini API Error: ${lastGeminiErr}. Please check GEMINI_API_KEY in server/.env`);
+      externalAiErrorNote = keyOrAuthErr || lastGeminiErr || 'Gemini API call failed';
+      console.warn(`[Gemini API Error Notice]: ${externalAiErrorNote}. Attempting fallbacks...`);
     }
 
     // ---------------------------------------------------------
@@ -226,20 +226,14 @@ Return RAW JSON ONLY with NO markdown syntax:
         }
       }
 
-      if (lastGroqErr) {
-        throw new ApiError(400, `Groq Cloud API Error: ${lastGroqErr}. Please check GROQ_API_KEY in server/.env`);
+      if (lastGroqErr && !externalAiErrorNote) {
+        externalAiErrorNote = `Groq API Error: ${lastGroqErr}`;
       }
     }
 
-    // If no valid key is provided in server/.env, inform developer
-    if (!geminiKey || geminiKey.includes('your_gemini_key_here')) {
-      throw new ApiError(
-        400,
-        'External AI API Key missing! Please paste your real Google Gemini API Key into server/.env (GEMINI_API_KEY=AIzaSy...). Get a free key at https://aistudio.google.com/'
-      );
-    }
-
+    // ---------------------------------------------------------
     // 3. FALLBACK: Comprehensive Built-In Intelligent ATS Analyzer Engine
+    // ---------------------------------------------------------
     const textLower = (cleanResumeText + ' ' + targetRole).toLowerCase();
     
     // Skill dictionary across multiple engineering & tech domains
@@ -319,9 +313,10 @@ Return RAW JSON ONLY with NO markdown syntax:
         `Align your resume structure strictly with standard ATS formatting for "${targetRole}".`,
         `Add missing target role keywords: ${uniqueMissing.slice(0, 3).join(', ') || 'System Design'}.`,
         `Quantify achievements in project descriptions (e.g., "Reduced latency by 35% using Redis caching").`,
-        `Connect with verified alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'} for a 1-on-1 resume review.`
+        `Connect with verified alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'} for a 1-on-1 resume review.`,
+        ...(externalAiErrorNote ? [`Cloud AI Notice: ${externalAiErrorNote} (Used CampusBridge ATS Engine)`] : [])
       ],
-      ai_provider: 'CampusBridge Real-Time AI ATS Engine'
+      ai_provider: externalAiErrorNote ? `CampusBridge AI ATS Engine (Fallback: ${externalAiErrorNote})` : 'CampusBridge Real-Time AI ATS Engine'
     };
   }
 }

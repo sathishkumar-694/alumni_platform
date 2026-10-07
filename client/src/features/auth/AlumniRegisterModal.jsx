@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, ShieldCheck, Upload } from 'lucide-react';
+import { X, ShieldCheck, Upload, Eye, EyeOff } from 'lucide-react';
 
 export const AlumniRegisterModal = ({ isOpen, onClose }) => {
   const { registerAlumni } = useAuth();
@@ -20,6 +20,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
     bio: ''
   });
   const [file, setFile] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -52,6 +53,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
       bio: ''
     });
     setFile(null);
+    setShowPassword(false);
   };
 
   const handleClose = () => {
@@ -61,6 +63,11 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!file) {
+      showNotification('Alumni ID Card photo is compulsory for registration and administrative verification.', 'error');
+      return;
+    }
 
     if (file && !file.type.startsWith('image/')) {
       showNotification('Please select a valid photo/image file (PNG, JPG, WEBP, SVG).', 'error');
@@ -216,31 +223,58 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <input
-              type="password"
-              className="form-input"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="form-input"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                style={{ paddingRight: '2.5rem' }}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0.25rem'
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div className="form-group">
-            <label className="form-label">Upload Alumni ID / Credential Photo (PNG, JPG, WEBP, SVG Only)</label>
+            <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Upload Alumni ID / Credential Photo <span style={{ color: 'var(--accent-rose)', fontWeight: 700 }}>* (Compulsory)</span></span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PNG, JPG, WEBP, SVG</span>
+            </label>
             <div
               style={{
-                border: '2px dashed var(--border-strong)',
+                border: file ? '2px dashed var(--accent-emerald)' : '2px dashed var(--border-strong)',
                 borderRadius: '8px',
                 padding: '1.25rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: 'var(--bg-subtle)'
+                background: file ? 'rgba(16, 185, 129, 0.05)' : 'var(--bg-subtle)'
               }}
             >
-              <Upload size={24} color="#7c3aed" style={{ marginBottom: '0.4rem' }} />
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                {file ? `Selected Photo: ${file.name}` : 'Click or drop Alumni ID photo here (Images only)'}
+              <Upload size={24} color={file ? 'var(--accent-emerald)' : '#7c3aed'} style={{ marginBottom: '0.4rem' }} />
+              <p style={{ fontSize: '0.85rem', fontWeight: file ? 700 : 400, color: file ? 'var(--accent-emerald)' : 'var(--text-main)' }}>
+                {file ? `✓ Selected Photo: ${file.name}` : 'Click or drop Alumni ID photo here (Required)'}
               </p>
               <input
                 type="file"
@@ -248,6 +282,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
                 style={{ display: 'none' }}
                 id="alumni-id-upload"
                 onChange={handleFileChange}
+                required
               />
               <label htmlFor="alumni-id-upload" className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>
                 Browse Photo File

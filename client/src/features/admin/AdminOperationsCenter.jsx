@@ -60,6 +60,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [previewUser, setPreviewUser] = useState(null);
   const [analysisUser, setAnalysisUser] = useState(null);
   const [editUser, setEditUser] = useState(null);
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState(null);
   const [activeVirtualSession, setActiveVirtualSession] = useState(null);
   const [editForm, setEditForm] = useState({
     maxCapacity: '5',
@@ -470,13 +471,18 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>Email: {userEmail}</p>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Submitted: {validDateStr}</p>
 
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          <button onClick={() => handleVerifyUser(targetUserId, 'APPROVE')} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
-                            <Check size={14} /> Approve ID
+                        <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column', marginTop: '0.5rem' }}>
+                          <button onClick={() => setSelectedUserForDetails(v)} className="btn btn-secondary btn-sm" style={{ width: '100%', fontSize: '0.78rem' }}>
+                            <FileText size={14} /> View Full Details & ID Photo
                           </button>
-                          <button onClick={() => handleVerifyUser(targetUserId, 'REJECT')} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
-                            <X size={14} /> Reject
-                          </button>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button onClick={() => handleVerifyUser(targetUserId, 'APPROVE')} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                              <Check size={14} /> Approve ID
+                            </button>
+                            <button onClick={() => handleVerifyUser(targetUserId, 'REJECT')} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                              <X size={14} /> Reject
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -621,7 +627,10 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                             {u.verification_status || 'VERIFIED'}
                           </span>
                         </td>
-                        <td style={{ padding: '0.75rem' }}>
+                        <td style={{ padding: '0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <button onClick={() => setSelectedUserForDetails(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+                            <FileText size={13} /> View Details
+                          </button>
                           <button onClick={() => setEditUser(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
                             <Edit size={13} /> Edit Account
                           </button>
@@ -731,6 +740,191 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           </div>
         </div>
       )}
+
+      {/* View Full Student / Alumni User Details Modal */}
+      {selectedUserForDetails && (() => {
+        const u = selectedUserForDetails.user || selectedUserForDetails;
+        const p = selectedUserForDetails.profile || u.profile || {};
+        const isAlumni = u.role === 'ALUMNI';
+        const isStudent = u.role === 'STUDENT';
+        const idCardUrl = isAlumni ? (p.alumni_id_card_url || p.alumniIdCardUrl) : (p.student_id_card_url || p.studentIdCardUrl);
+        const formattedIdCardUrl = idCardUrl ? getAssetUrl(idCardUrl) : null;
+        const targetUserId = u.id || selectedUserForDetails.user_id;
+
+        return (
+          <div className="modal-overlay" onClick={() => setSelectedUserForDetails(null)}>
+            <div
+              className="modal-content"
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '680px', width: '92%', maxHeight: '90vh', overflowY: 'auto', padding: '1.75rem', margin: 'auto' }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-card)', paddingBottom: '1rem' }}>
+                <div>
+                  <span className="badge badge-purple" style={{ marginBottom: '0.4rem' }}>
+                    FULL USER DOSSIER ({u.role})
+                  </span>
+                  <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)' }}>{u.name}</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{u.email}</p>
+                </div>
+                <button onClick={() => setSelectedUserForDetails(null)} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Status Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '1.5rem', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+                <div>
+                  <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Account Role</p>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>{u.role}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>Verification Status</p>
+                  <span className={`badge ${u.verification_status === 'VERIFIED' ? 'badge-emerald' : u.verification_status === 'REJECTED' ? 'badge-rose' : 'badge-amber'}`} style={{ marginTop: '0.2rem' }}>
+                    {u.verification_status || 'PENDING'}
+                  </span>
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', textTransform: 'uppercase', fontWeight: 700 }}>User ID</p>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>#{targetUserId}</p>
+                </div>
+              </div>
+
+              {/* Detailed Fields for Alumni */}
+              {isAlumni && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Award size={16} color="var(--primary)" /> Alumni Professional Credentials
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Current Organization / Company</p>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.company || 'Not Provided'}</p>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Designation / Job Role</p>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.designation || 'Not Provided'}</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Experience</p>
+                      <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.experience_years || p.experienceYears || 0} Years</p>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Graduation Year</p>
+                      <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.graduation_year || p.graduationYear || 'N/A'}</p>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Mentee Capacity</p>
+                      <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-purple)' }}>
+                        {p.current_capacity || 0} / {p.max_capacity || p.maxCapacity || 5} Mentees
+                      </p>
+                    </div>
+                  </div>
+
+                  {p.linkedin_url && (
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>LinkedIn Profile</p>
+                      <a href={p.linkedin_url} target="_blank" rel="noreferrer" style={{ fontSize: '0.85rem', color: 'var(--primary)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.2rem' }}>
+                        {p.linkedin_url} <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  )}
+
+                  {p.bio && (
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Professional Bio</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '0.25rem' }}>{p.bio}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Detailed Fields for Student */}
+              {isStudent && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <BookOpen size={16} color="var(--primary)" /> Student Academic Dossier
+                  </h4>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Registration Number</p>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.reg_number || p.regNumber || 'N/A'}</p>
+                    </div>
+
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Academic Year</p>
+                      <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.academic_year || p.academicYear || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Department / Major</p>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{p.department || 'N/A'}</p>
+                  </div>
+
+                  {p.career_goals && (
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-card)' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', fontWeight: 600 }}>Career Goals & Aspirations</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '0.25rem' }}>{p.career_goals}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Uploaded ID Card Credential Image Preview */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <FileText size={16} color="var(--primary)" /> Uploaded Verification ID Card Document
+                </h4>
+
+                {formattedIdCardUrl ? (
+                  <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)', textAlign: 'center' }}>
+                    <img
+                      src={formattedIdCardUrl}
+                      alt="Verification ID Card Document"
+                      style={{ maxWidth: '100%', maxHeight: '280px', objectFit: 'contain', borderRadius: '8px', border: '1px solid var(--border-card)', marginBottom: '0.75rem' }}
+                    />
+                    <div>
+                      <a href={formattedIdCardUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <ExternalLink size={14} /> Open Full Resolution Photo
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--border-card)', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    ⚠️ No ID card credential photo uploaded for this account.
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border-card)', paddingTop: '1rem' }}>
+                {u.verification_status !== 'VERIFIED' && (
+                  <button onClick={() => { handleVerifyUser(targetUserId, 'APPROVE'); setSelectedUserForDetails(null); }} className="btn btn-primary btn-sm">
+                    <Check size={14} /> Approve Verification
+                  </button>
+                )}
+                {u.verification_status !== 'REJECTED' && (
+                  <button onClick={() => { handleVerifyUser(targetUserId, 'REJECT'); setSelectedUserForDetails(null); }} className="btn btn-danger btn-sm">
+                    <X size={14} /> Reject Account
+                  </button>
+                )}
+                <button onClick={() => setSelectedUserForDetails(null)} className="btn btn-secondary btn-sm">
+                  Close Dossier
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Reassign Mentor Modal */}
       {reassignMentorship && (

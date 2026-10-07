@@ -65,6 +65,10 @@ export class AuthService {
       throw new ApiError(400, 'Name, email, password, company, and designation are required');
     }
 
+    if (!file) {
+      throw new ApiError(400, 'Alumni ID card photo is compulsory for registration and verification');
+    }
+
     const existingUser = await authRepository.findUserByEmail(email);
     if (existingUser) {
       throw new ApiError(400, 'An account with this email address already exists');

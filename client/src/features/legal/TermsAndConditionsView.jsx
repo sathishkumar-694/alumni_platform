@@ -3,7 +3,6 @@ import React from 'react';
 export const TermsAndConditionsView = ({ onNavigateHome }) => {
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', padding: '2.5rem 1.5rem 4rem' }}>
-      {/* Header Breadcrumb & Title */}
       <div style={{ marginBottom: '2rem' }}>
         <button
           onClick={onNavigateHome}

@@ -42,15 +42,33 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
   };
 
   if (loading) return <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading 1-on-1 sessions...</p>;
-  if (sessions.length === 0) return null;
 
   return (
     <div style={{ marginTop: '1rem', background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-card)' }}>
-      <h5 style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <Calendar size={16} color="var(--primary)" /> Scheduled 1-on-1 Sessions ({sessions.length})
-      </h5>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <h5 style={{ fontSize: '0.95rem', color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <Calendar size={16} color="var(--primary)" /> 1-on-1 Virtual Sessions ({sessions.length})
+        </h5>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <button
+          onClick={() => setActiveVirtualSession({
+            id: `inst-${mentorshipId}`,
+            topic: '1-on-1 Instant Mentorship & Code Session',
+            mentorship_id: mentorshipId
+          })}
+          className="btn btn-primary btn-sm"
+          style={{ fontSize: '0.78rem', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' }}
+        >
+          <Video size={14} /> Launch Instant 1-on-1 Video Call
+        </button>
+      </div>
+
+      {sessions.length === 0 ? (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+          No scheduled session times found. Click <strong>Launch Instant 1-on-1 Video Call</strong> above to start a live WebRTC audio/video call, collaborative whiteboard & code sandbox!
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {sessions.map(s => {
           const isPendingSelection = s.status === 'PENDING_SLOT_SELECTION';
           const proposedSlots = s.proposed_slots || [s.scheduled_at];

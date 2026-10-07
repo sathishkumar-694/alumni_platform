@@ -160,7 +160,7 @@ export const db = {
 
   domainRequests: {
     findPending: async () => {
-      return await queryMySQL('SELECT * FROM `domain_requests` WHERE `status` = "PENDING" ORDER BY `created_at` DESC');
+      return await queryMySQL('SELECT * FROM `domain_requests` WHERE `status` = ? ORDER BY `created_at` DESC', ['PENDING']);
     },
     findById: async (id) => {
       const rows = await queryMySQL('SELECT * FROM `domain_requests` WHERE `id` = ?', [id]);
@@ -353,8 +353,8 @@ export const db = {
     create: async (data) => {
       const id = data.id || `anc-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `target_role`) VALUES (?, ?, ?, ?, ?)',
-        [id, data.author_id, data.title, data.content, data.target_role || 'ALL']
+        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `category`, `target_domain_id`) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, data.author_id, data.title, data.content, data.category || 'GENERAL', data.target_domain_id || null]
       );
       const rows = await queryMySQL('SELECT * FROM `announcements` WHERE `id` = ?', [id]);
       return rows[0];
