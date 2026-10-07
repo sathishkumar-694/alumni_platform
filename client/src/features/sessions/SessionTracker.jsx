@@ -134,6 +134,7 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
           );
         })}
       </div>
+      )}
 
       {/* Embedded 1-on-1 Virtual Video Conference Modal */}
       {activeVirtualSession && (
