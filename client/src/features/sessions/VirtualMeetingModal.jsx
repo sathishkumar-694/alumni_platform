@@ -18,9 +18,11 @@ import {
   Users,
   Check
 } from 'lucide-react';
+import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 
 export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
+  const { user } = useAuth();
   const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('video'); // 'video' | 'whiteboard' | 'code' | 'chat'
 
@@ -256,11 +258,14 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
               <Video size={20} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                CampusBridge Native Call Suite <span className="badge badge-emerald" style={{ fontSize: '0.65rem' }}>● In-App WebRTC</span>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                CampusBridge WebRTC Live Room
+                <span className="badge badge-rose" style={{ fontSize: '0.65rem', background: '#991b1b', color: '#fecdd3' }}>🔴 Mentor Currently in a Meeting</span>
+                <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>Session ID: #{session.id || session.mentorship_id || 'LIVE-1'}</span>
+                <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>User ID: #{user?.id || 'AUTH'}</span>
               </h3>
-              <p style={{ fontSize: '0.775rem', color: '#94a3b8', margin: 0 }}>
-                Topic: <strong style={{ color: '#f8fafc' }}>{session.topic || 'Mentorship Guidance'}</strong> • Student: <strong>{session.student_name || 'Mentee'}</strong> • Mentor: <strong style={{ color: '#38bdf8' }}>{session.mentor_name || 'Alumni Mentor'}</strong>
+              <p style={{ fontSize: '0.775rem', color: '#94a3b8', margin: '0.2rem 0 0 0' }}>
+                Topic: <strong style={{ color: '#f8fafc' }}>{session.topic || 'Mentorship Guidance'}</strong> • Student: <strong>{session.student_name || 'Mentee'} {session.student_id ? `(ID #${session.student_id})` : ''}</strong> • Mentor: <strong style={{ color: '#38bdf8' }}>{session.mentor_name || 'Alumni Mentor'} {session.mentor_id ? `(ID #${session.mentor_id})` : ''}</strong>
               </p>
             </div>
           </div>

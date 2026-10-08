@@ -109,18 +109,28 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
                       {(mentor.name || 'M').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <h4 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
-                        {mentor.name}
-                      </h4>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        <h4 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
+                          {mentor.name}
+                        </h4>
+                        <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>
+                          ID: ALUM-#{mentor.id}
+                        </span>
+                      </div>
                       <p style={{ fontSize: '0.825rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem', margin: 0 }}>
                         <Briefcase size={13} /> {mentor.profile.designation} at {mentor.profile.company}
                       </p>
                     </div>
                   </div>
 
-                  <span className="badge badge-cyan" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', fontWeight: 700, flexShrink: 0 }}>
-                    {mentor.match_score}% Match
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+                    <span className="badge badge-cyan" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                      {mentor.match_score}% Match
+                    </span>
+                    <span className={`badge ${mentor.is_in_meeting ? 'badge-rose' : 'badge-emerald'}`} style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>
+                      {mentor.is_in_meeting ? '🔴 Currently in a Meeting' : '🟢 Available for 1-on-1 Call'}
+                    </span>
+                  </div>
                 </div>
 
                 <div style={{ background: 'var(--bg-subtle)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-card)', marginBottom: '1rem' }}>

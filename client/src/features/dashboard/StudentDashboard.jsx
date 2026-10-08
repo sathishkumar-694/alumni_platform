@@ -333,9 +333,20 @@ export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
                 <div key={m.id} className="glass-panel" style={{ padding: '1.75rem', borderRadius: '20px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-card)' }}>
                     <div>
-                      <span className="badge badge-emerald" style={{ marginBottom: '0.35rem' }}>
-                        ACTIVE MENTORSHIP
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                        <span className="badge badge-emerald">
+                          ACTIVE MENTORSHIP
+                        </span>
+                        <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>
+                          Track ID: #{m.id}
+                        </span>
+                        <span className="badge badge-cyan" style={{ fontSize: '0.65rem' }}>
+                          Mentor ID: ALUM-#{m.mentor_id || m.mentor?.id}
+                        </span>
+                        <span className="badge badge-rose" style={{ fontSize: '0.65rem', background: '#991b1b', color: '#fecdd3' }}>
+                          🔴 Mentor Currently in a Meeting
+                        </span>
+                      </div>
                       <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
                         Mentor: {m.mentor?.name} ({m.mentor?.profile?.designation} at {m.mentor?.profile?.company})
                       </h4>
