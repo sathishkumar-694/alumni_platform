@@ -10,8 +10,8 @@ export const getRecommendedMentors = asyncHandler(async (req, res) => {
 });
 
 export const analyzeResume = asyncHandler(async (req, res) => {
-  const { resumeText, targetRole, portfolioUrl, apiKey, aiProvider } = req.body || {};
-  const result = await recommendationService.analyzeResume(req.user, { resumeText, targetRole, portfolioUrl, apiKey, aiProvider });
+  const { resumeText, targetRole, jobDescription, portfolioUrl, apiKey, aiProvider } = req.body || {};
+  const result = await recommendationService.analyzeResume(req.user, { resumeText, targetRole, jobDescription, portfolioUrl, apiKey, aiProvider });
   return res.status(200).json(
     new ApiResponse(200, result, 'AI Resume & Industry Fit Analysis completed successfully')
   );

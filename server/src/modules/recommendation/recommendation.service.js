@@ -55,7 +55,7 @@ export class RecommendationService {
     return recommended;
   }
 
-  async analyzeResume(currentUser, { resumeText = '', targetRole = 'Software Development Engineer', portfolioUrl = '', apiKey = '', aiProvider = 'gemini' }) {
+  async analyzeResume(currentUser, { resumeText = '', targetRole = '', jobDescription = '', portfolioUrl = '', apiKey = '', aiProvider = 'gemini' }) {
     // 1. Resolve Primary & Fallback API Keys from request or environment
     const geminiKey = (apiKey && aiProvider === 'gemini' ? apiKey : process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
     const groqKey = (apiKey && aiProvider === 'groq' ? apiKey : process.env.GROQ_API_KEY || config.groqApiKey || '').trim();
@@ -74,20 +74,27 @@ export class RecommendationService {
     const dbDomains = await recommendationRepository.findAllDomains();
     const allMentors = await this.getRecommendedMentors(currentUser);
 
+    const isJd = Boolean(jobDescription && jobDescription.trim().length > 10);
+    const targetTitle = targetRole.trim() || 'Software Development Engineer';
+
+    const targetContext = isJd
+      ? `Job Description (JD):\n"""\n${jobDescription.trim().slice(0, 3000)}\n"""`
+      : `Target Role / Job Title: "${targetTitle}"`;
+
     const promptText = `You are a professional AI ATS Resume Evaluator & Career Advisor.
-Carefully read and evaluate the attached candidate resume strictly against the requested Target Role: "${targetRole}".
+Carefully read and evaluate the candidate's resume strictly against the following ${targetContext}.
 
 Task:
 1. Extract ALL actual technical skills, programming languages, software tools, frameworks, and engineering concepts mentioned in the resume.
-2. Compare the candidate's actual skills and experience against key requirements for "${targetRole}".
+2. Compare the candidate's actual skills and experience against key requirements for this ${isJd ? 'Job Description' : 'Target Role'}.
 3. Calculate an accurate overall ATS Compatibility Match Score (0-100%).
 4. Calculate individual ATS sub-scores (0-100%):
-   - keyword_match_score: ATS Keyword Coverage % for "${targetRole}"
+   - keyword_match_score: ATS Keyword Coverage % for this position
    - impact_score: Measurable Metrics & Action Verbs %
    - format_score: Structure, Readability & Organization %
    - technical_depth_score: Skill Relevance & Domain Competency %
-5. Identify 3-6 critical missing skills / ATS keywords needed to rank higher for "${targetRole}".
-6. Provide 3-5 specific, actionable bullet points to optimize the resume for "${targetRole}".
+5. Identify 3-6 critical missing skills / ATS keywords needed to rank higher.
+6. Provide 3-5 specific, actionable bullet points to optimize the resume.
 
 Candidate Resume Content:
 "${cleanResumeText.slice(0, 8000)}"
@@ -106,10 +113,13 @@ Return RAW JSON ONLY with NO markdown syntax:
 
     let externalAiErrorNote = '';
 
+    const isRealGeminiKey = geminiKey && geminiKey.length > 15 && !geminiKey.includes('your_gemini_key');
+    const isRealGroqKey = groqKey && groqKey.length > 15 && !groqKey.includes('your_groq_key');
+
     // ---------------------------------------------------------
     // PRIMARY EXTERNAL AI SERVICE: GOOGLE GEMINI AI
     // ---------------------------------------------------------
-    if (geminiKey && !geminiKey.includes('your_gemini_key_here')) {
+    if (isRealGeminiKey) {
       console.log('[Gemini API Initiated] Calling Google Gemini API with key from server/.env...');
       // Officially supported active Gemini models
       const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'];
@@ -136,7 +146,7 @@ Return RAW JSON ONLY with NO markdown syntax:
             const score = Number(parsed.ats_score || parsed.sde_fit_score) || 78;
 
             return {
-              target_role: targetRole,
+              target_role: isJd ? 'Custom Job Description (JD)' : targetTitle,
               ats_score: score,
               sde_fit_score: score,
               keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 4),
@@ -172,7 +182,7 @@ Return RAW JSON ONLY with NO markdown syntax:
     // ---------------------------------------------------------
     // FALLBACK EXTERNAL AI SERVICE: GROQ CLOUD AI (Active Non-Deprecated Models)
     // ---------------------------------------------------------
-    if (groqKey && !groqKey.includes('your_groq_key_here')) {
+    if (isRealGroqKey) {
       console.log('[Groq API Initiated] Calling Groq Cloud API with key from server/.env...');
       // Officially active non-decommissioned Groq model identifiers
       const groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'gemma2-9b-it', 'deepseek-r1-distill-llama-70b'];
@@ -202,7 +212,7 @@ Return RAW JSON ONLY with NO markdown syntax:
             const score = Number(parsed.ats_score) || 85;
 
             return {
-              target_role: targetRole,
+              target_role: isJd ? 'Custom Job Description (JD)' : targetTitle,
               ats_score: score,
               sde_fit_score: score,
               keyword_match_score: Number(parsed.keyword_match_score) || Math.min(98, score + 3),

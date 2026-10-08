@@ -310,55 +310,42 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         {/* Main Workarea Container */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', background: '#030712' }}>
           
-          {/* TAB 1: DUAL HD VIDEO CALL VIEW */}
-          {activeTab === 'video' && (
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', padding: '1rem', background: '#030712' }}>
-              
-              {/* Local User Stream (Your Camera) */}
-              <div style={{ position: 'relative', background: '#111827', borderRadius: '12px', overflow: 'hidden', border: '1px solid #1f2937', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {cameraActive ? (
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          {/* TAB 1: DUAL HD REAL-TIME 2-WAY WEBRTC VIDEO CALL VIEW */}
+          {activeTab === 'video' && (() => {
+            const cleanRoomName = `CampusBridge-Session-${session.id || session.mentorship_id || 'live-room'}`.replace(/[^a-zA-Z0-9-_]/g, '-');
+            const participantName = user?.name || session.student_name || session.mentor_name || 'Participant';
+            const roomUrl = `https://meet.jit.si/${cleanRoomName}#userInfo.displayName="${encodeURIComponent(participantName)}"`;
+
+            return (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0.75rem', background: '#030712' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', background: '#111827', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #1f2937' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600 }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
+                    Live 2-Way WebRTC Room Active • Room ID: <strong style={{ color: '#f8fafc' }}>{cleanRoomName}</strong>
+                  </div>
+
+                  <a
+                    href={roomUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: '#1e293b', border: '1px solid #334155', color: '#f8fafc' }}
+                  >
+                    <Maximize2 size={13} /> Open Room in Separate Window
+                  </a>
+                </div>
+
+                <div style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '1px solid #1f2937', background: '#0a0f1d' }}>
+                  <iframe
+                    src={roomUrl}
+                    title="CampusBridge Real-Time 2-Way WebRTC Video Call"
+                    allow="camera; microphone; display-capture; autoplay; clipboard-write"
+                    style={{ width: '100%', height: '100%', border: 'none' }}
                   />
-                ) : (
-                  <div style={{ textAlign: 'center', color: '#94a3b8' }}>
-                    <VideoOff size={48} color="#64748b" style={{ marginBottom: '0.5rem' }} />
-                    <p style={{ fontSize: '0.9rem' }}>Your camera is turned off</p>
-                  </div>
-                )}
-                
-                <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(6px)', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', color: '#f8fafc', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  {micActive ? <Mic size={12} color="#34d399" /> : <MicOff size={12} color="#ef4444" />}
-                  You ({session.student_name || 'Mentee'})
                 </div>
               </div>
-
-              {/* Remote Peer Stream (Mentor Camera Feed) */}
-              <div style={{ position: 'relative', background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', borderRadius: '12px', overflow: 'hidden', border: '1px solid #312e81', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ width: '90px', height: '90px', borderRadius: '50%', background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)', color: '#ffffff', fontSize: '2.5rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem', boxShadow: '0 0 25px rgba(37, 99, 235, 0.4)' }}>
-                    {(session.mentor_name || 'M').charAt(0)}
-                  </div>
-                  <h4 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.25rem' }}>
-                    {session.mentor_name || 'Alumni Mentor'}
-                  </h4>
-                  <p style={{ fontSize: '0.85rem', color: '#38bdf8' }}>Verified Alumni Mentor • HD Audio Stream</p>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.75rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '0.25rem 0.65rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 600 }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399' }} /> Connected & Streaming
-                  </div>
-                </div>
-
-                <div style={{ position: 'absolute', bottom: '1rem', left: '1rem', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(6px)', padding: '0.35rem 0.75rem', borderRadius: '6px', fontSize: '0.78rem', color: '#f8fafc', fontWeight: 600 }}>
-                  🎙️ {session.mentor_name || 'Alumni Mentor'}
-                </div>
-              </div>
-
-            </div>
-          )}
+            );
+          })()}
 
           {/* TAB 2: INTERACTIVE ARCHITECTURE WHITEBOARD */}
           {activeTab === 'whiteboard' && (

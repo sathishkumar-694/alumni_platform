@@ -28,7 +28,9 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
   const { showNotification } = useNotification();
 
   // Form inputs
-  const [targetRole, setTargetRole] = useState('Software Development Engineer (SDE-1)');
+  const [targetMode, setTargetMode] = useState('role'); // 'role' | 'jd'
+  const [targetRole, setTargetRole] = useState('Software Development Engineer');
+  const [jobDescription, setJobDescription] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -36,18 +38,6 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
-
-  // Preset job roles for 1-click selection
-  const presetRoles = [
-    'Software Development Engineer (SDE-1)',
-    'Full Stack Web Developer',
-    'Frontend React Engineer',
-    'Backend Node.js / Python Engineer',
-    'Data Analyst / Data Scientist',
-    'Cloud & DevOps Engineer',
-    'Mobile App Developer (Flutter/iOS)',
-    'Mechanical / CAD Engineer'
-  ];
 
   // Client-side file reading & text extraction preview
   const handleFileChange = (e) => {
@@ -109,6 +99,16 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
       return;
     }
 
+    if (targetMode === 'role' && !targetRole.trim()) {
+      showNotification('Please type your Target Job Role / Title.', 'error');
+      return;
+    }
+
+    if (targetMode === 'jd' && !jobDescription.trim()) {
+      showNotification('Please paste the complete Job Description (JD) text.', 'error');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -116,7 +116,8 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
         method: 'POST',
         body: JSON.stringify({
           resumeText: textToSubmit || `Resume File: ${selectedFile?.name}`,
-          targetRole,
+          targetRole: targetMode === 'role' ? targetRole : '',
+          jobDescription: targetMode === 'jd' ? jobDescription : '',
           portfolioUrl
         })
       });
@@ -134,6 +135,7 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
     setAnalysisResult(null);
     setSelectedFile(null);
     setResumeText('');
+    setJobDescription('');
     setPortfolioUrl('');
   };
 
@@ -179,45 +181,63 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
         <div className="glass-panel" style={{ padding: '2rem', borderRadius: '20px' }}>
           <form onSubmit={handleAnalyze}>
             
-            {/* Step 1: Target Role Selection */}
+            {/* Step 1: Target Role or JD Input */}
             <div style={{ marginBottom: '1.75rem' }}>
-              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Target size={16} color="var(--primary)" /> 1. Select Target Job Role / Desired Title
+              <label className="form-label" style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem' }}>
+                <Target size={16} color="var(--primary)" /> 1. Target Evaluation Mode:
               </label>
 
-              {/* Preset Role Quick Selector Pills */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
-                {presetRoles.map(role => (
-                  <button
-                    type="button"
-                    key={role}
-                    onClick={() => setTargetRole(role)}
-                    style={{
-                      background: targetRole === role ? 'var(--primary)' : 'var(--bg-subtle)',
-                      color: targetRole === role ? '#ffffff' : 'var(--text-main)',
-                      border: targetRole === role ? '1px solid var(--primary)' : '1px solid var(--border-card)',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '20px',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    {role}
-                  </button>
-                ))}
+              {/* Mode Toggle Buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setTargetMode('role')}
+                  className={`btn ${targetMode === 'role' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.45rem 1rem' }}
+                >
+                  <Target size={14} /> Type Target Job Role / Title
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTargetMode('jd')}
+                  className={`btn ${targetMode === 'jd' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.85rem', padding: '0.45rem 1rem' }}
+                >
+                  <FileText size={14} /> Paste Full Job Description (JD)
+                </button>
               </div>
 
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Or type custom role (e.g. Cybersecurity Specialist, ML Engineer)"
-                value={targetRole}
-                onChange={(e) => setTargetRole(e.target.value)}
-                required
-                style={{ height: '44px', fontSize: '0.9rem' }}
-              />
+              {targetMode === 'role' ? (
+                <div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Type target job role (e.g. Full Stack Developer, Data Analyst, Cloud Architect, Mechanical Engineer)"
+                    value={targetRole}
+                    onChange={(e) => setTargetRole(e.target.value)}
+                    required
+                    style={{ height: '44px', fontSize: '0.9rem' }}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', margin: '0.35rem 0 0 0' }}>
+                    Type any custom target job title or role you are aiming for.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <textarea
+                    className="form-textarea"
+                    rows={4}
+                    placeholder="Paste full Job Description (JD) text here..."
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    required
+                    style={{ fontSize: '0.85rem', lineHeight: '1.5' }}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', margin: '0.35rem 0 0 0' }}>
+                    Paste the entire job posting or JD to match your resume directly against specific JD keywords.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Step 2: File Upload / Drag Zone */}
