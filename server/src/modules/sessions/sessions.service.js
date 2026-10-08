@@ -2,7 +2,18 @@ import { sessionsRepository } from './sessions.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
 
 export class SessionsService {
-  async createSession(user, { mentorshipId, scheduledAt, proposedSlots, durationMins, topic, meetingLink }) {
+  async createSession(user, payload) {
+    const mentorshipId = payload.mentorshipId || payload.mentorship_id;
+    const scheduledAt = payload.scheduledAt || payload.scheduled_at;
+    const proposedSlots = payload.proposedSlots || payload.proposed_slots;
+    const durationMins = payload.durationMins || payload.duration_mins;
+    const topic = payload.topic || '1-on-1 Mentorship Session';
+    const meetingLink = payload.meetingLink || payload.meeting_link;
+
+    if (!mentorshipId) {
+      throw new ApiError(400, 'Mentorship ID (mentorshipId or mentorship_id) is required');
+    }
+
     const mentorship = await sessionsRepository.findActiveMentorshipById(mentorshipId);
     if (!mentorship) {
       throw new ApiError(404, 'Active mentorship relationship not found');

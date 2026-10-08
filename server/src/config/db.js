@@ -255,6 +255,10 @@ export const db = {
         return await queryMySQL('SELECT * FROM `active_mentorships`');
       }
     },
+    findById: async (id) => {
+      const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
+      return rows[0] || null;
+    },
     create: async (data) => {
       const id = data.id || `am-${Date.now()}`;
       const formattedStartDate = formatMySQLDateTime(data.start_date || new Date());

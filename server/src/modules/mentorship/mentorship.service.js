@@ -2,9 +2,13 @@ import { mentorshipRepository } from './mentorship.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
 
 export class MentorshipService {
-  async createRequest(user, { mentorId, domainId, message }) {
-    if (user.role !== 'STUDENT') {
-      throw new ApiError(403, 'Only verified students can submit mentorship requests');
+  async createRequest(user, payload) {
+    const mentorId = payload.mentorId || payload.mentor_id;
+    const domainId = payload.domainId || payload.domain_id;
+    const message = payload.message;
+
+    if (!mentorId) {
+      throw new ApiError(400, 'Mentor ID (mentorId or mentor_id) is required');
     }
 
     const mentor = await mentorshipRepository.findUserById(mentorId);

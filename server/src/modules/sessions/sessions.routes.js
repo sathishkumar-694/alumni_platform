@@ -15,8 +15,8 @@ const router = Router();
 router.use(verifyJWT);
 
 // Sessions Endpoints (with full alias support)
-router.post('/sessions', validateBody(['mentorshipId', 'topic']), createSession);
-router.post('/', validateBody(['mentorshipId', 'topic']), createSession);
+router.post('/sessions', createSession);
+router.post('/', createSession);
 
 router.get('/sessions/mentorship/:mentorshipId', getSessionsByMentorship);
 router.get('/mentorship/:mentorshipId', getSessionsByMentorship);

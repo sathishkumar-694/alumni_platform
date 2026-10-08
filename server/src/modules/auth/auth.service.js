@@ -7,7 +7,8 @@ import { uploadToCloud } from '../../config/cloudinary.js';
 
 export class AuthService {
   async registerStudent(studentData, file) {
-    const { name, email, password, regNumber, academicYear, department, careerGoals } = studentData;
+    const { name, email, password, academicYear, academic_year, department, careerGoals, career_goals, studentIdCardUrl: bodyCardUrl, student_id_card_url: bodyCardUrl2 } = studentData;
+    const regNumber = studentData.regNumber || studentData.reg_number;
 
     if (!name || !email || !password || !regNumber) {
       throw new ApiError(400, 'Name, email, password, and registration number are required');
@@ -18,7 +19,7 @@ export class AuthService {
       throw new ApiError(400, 'An account with this email address already exists');
     }
 
-    let studentIdCardUrl = '';
+    let studentIdCardUrl = bodyCardUrl || bodyCardUrl2 || '';
     if (file) {
       studentIdCardUrl = await uploadToCloud(file.path, 'student_ids');
     }
@@ -35,9 +36,9 @@ export class AuthService {
 
     await authRepository.createStudentProfile(newUser.id, {
       reg_number: regNumber,
-      academic_year: academicYear,
+      academic_year: academicYear || academic_year,
       department: department,
-      career_goals: careerGoals || '',
+      career_goals: careerGoals || career_goals || '',
       student_id_card_url: studentIdCardUrl,
       interests: []
     });
@@ -59,13 +60,14 @@ export class AuthService {
   }
 
   async registerAlumni(alumniData, file) {
-    const { name, email, password, company, designation, experienceYears, graduationYear, linkedinUrl, maxCapacity, bio } = alumniData;
+    const { name, email, password, company, designation, experienceYears, experience_years, graduationYear, graduation_year, linkedinUrl, linkedin_url, maxCapacity, max_capacity, bio, alumniIdCardUrl: bodyCardUrl, alumni_id_card_url: bodyCardUrl2 } = alumniData;
 
     if (!name || !email || !password || !company || !designation) {
       throw new ApiError(400, 'Name, email, password, company, and designation are required');
     }
 
-    if (!file) {
+    const idCardProvided = file || bodyCardUrl || bodyCardUrl2;
+    if (!idCardProvided) {
       throw new ApiError(400, 'Alumni ID card photo is compulsory for registration and verification');
     }
 
@@ -74,7 +76,7 @@ export class AuthService {
       throw new ApiError(400, 'An account with this email address already exists');
     }
 
-    let alumniIdCardUrl = '';
+    let alumniIdCardUrl = bodyCardUrl || bodyCardUrl2 || '';
     if (file) {
       alumniIdCardUrl = await uploadToCloud(file.path, 'alumni_ids');
     }

@@ -17,7 +17,7 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.post('/requests', authorize('STUDENT'), requireVerified, validateBody(['mentorId']), createRequest);
+router.post('/requests', authorize('STUDENT'), requireVerified, createRequest);
 
 // Respond to mentorship request (supports both PATCH and POST)
 router.patch('/requests/:requestId/respond', authorize('ALUMNI'), validateBody(['action']), respondToRequest);

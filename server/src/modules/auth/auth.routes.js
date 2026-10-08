@@ -9,7 +9,7 @@ const router = Router();
 router.post(
   '/register/student',
   upload.single('studentIdCard'),
-  validateBody(['name', 'email', 'password', 'regNumber']),
+  validateBody(['name', 'email', 'password']),
   validateEmail('email'),
   registerStudent
 );
