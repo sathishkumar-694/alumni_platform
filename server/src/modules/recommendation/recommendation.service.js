@@ -113,18 +113,16 @@ Return RAW JSON ONLY with NO markdown syntax:
 
     let externalAiErrorNote = '';
 
-    const isRealGeminiKey = geminiKey && geminiKey.length > 15 && !geminiKey.includes('your_gemini_key');
-    const isRealGroqKey = groqKey && groqKey.length > 15 && !groqKey.includes('your_groq_key');
+    const isRealGeminiKey = geminiKey && geminiKey.length >= 20 && !geminiKey.includes('your_gemini_key');
+    const isRealGroqKey = groqKey && groqKey.length >= 20 && !groqKey.includes('your_groq_key');
 
     // ---------------------------------------------------------
     // PRIMARY EXTERNAL AI SERVICE: GOOGLE GEMINI AI
     // ---------------------------------------------------------
     if (isRealGeminiKey) {
       console.log('[Gemini API Initiated] Calling Google Gemini API with key from server/.env...');
-      // Officially supported active Gemini models
-      const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash-8b'];
-      let lastGeminiErr = '';
-      let keyOrAuthErr = '';
+      // Officially active production Gemini model identifiers
+      const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'];
 
       for (const modelName of geminiModels) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`;
@@ -163,20 +161,12 @@ Return RAW JSON ONLY with NO markdown syntax:
           } else {
             const errData = await res.json().catch(() => ({}));
             const msg = errData.error?.message || `HTTP ${res.status}`;
-            lastGeminiErr = msg;
-            if (res.status === 400 || res.status === 401 || res.status === 403 || msg.toLowerCase().includes('key') || msg.toLowerCase().includes('quota')) {
-              keyOrAuthErr = msg;
-            }
             console.error(`[Gemini API Warning - ${modelName}]: ${msg}`);
           }
         } catch (err) {
-          lastGeminiErr = err.message;
           console.warn(`[Gemini API Exception - ${modelName}]:`, err.message);
         }
       }
-
-      externalAiErrorNote = keyOrAuthErr || lastGeminiErr || 'Gemini API call failed';
-      console.warn(`[Gemini API Error Notice]: ${externalAiErrorNote}. Attempting fallbacks...`);
     }
 
     // ---------------------------------------------------------
@@ -186,7 +176,6 @@ Return RAW JSON ONLY with NO markdown syntax:
       console.log('[Groq API Initiated] Calling Groq Cloud API with key from server/.env...');
       // Officially active non-decommissioned Groq model identifiers
       const groqModels = ['llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'gemma2-9b-it', 'deepseek-r1-distill-llama-70b'];
-      let lastGroqErr = '';
 
       for (const groqModel of groqModels) {
         try {
@@ -228,16 +217,11 @@ Return RAW JSON ONLY with NO markdown syntax:
             };
           } else {
             const errData = await response.json().catch(() => ({}));
-            lastGroqErr = errData.error?.message || `HTTP ${response.status}`;
-            console.error(`[Groq API Warning - ${groqModel}]: ${lastGroqErr}`);
+            console.error(`[Groq API Warning - ${groqModel}]: ${errData.error?.message || `HTTP ${response.status}`}`);
           }
         } catch (groqErr) {
-          lastGroqErr = groqErr.message;
+          console.warn(`[Groq API Exception - ${groqModel}]:`, groqErr.message);
         }
-      }
-
-      if (lastGroqErr && !externalAiErrorNote) {
-        externalAiErrorNote = `Groq API Error: ${lastGroqErr}`;
       }
     }
 
@@ -308,7 +292,7 @@ Return RAW JSON ONLY with NO markdown syntax:
     const fallbackMentors = matchedMentors.length > 0 ? matchedMentors : allMentors.slice(0, 3);
 
     return {
-      target_role: targetRole,
+      target_role: targetRole || (isJd ? 'Custom Job Description (JD)' : 'Software Engineer'),
       ats_score: baseAtsScore,
       sde_fit_score: baseAtsScore,
       keyword_match_score: Math.min(98, baseAtsScore + 4),
@@ -320,13 +304,12 @@ Return RAW JSON ONLY with NO markdown syntax:
       portfolio_analyzed: Boolean(portfolioUrl),
       matched_mentors: fallbackMentors,
       actionable_advice: [
-        `Align your resume structure strictly with standard ATS formatting for "${targetRole}".`,
+        `Align your resume structure strictly with standard ATS formatting for "${targetRole || 'Engineering Roles'}".`,
         `Add missing target role keywords: ${uniqueMissing.slice(0, 3).join(', ') || 'System Design'}.`,
         `Quantify achievements in project descriptions (e.g., "Reduced latency by 35% using Redis caching").`,
-        `Connect with verified alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'} for a 1-on-1 resume review.`,
-        ...(externalAiErrorNote ? [`Cloud AI Notice: ${externalAiErrorNote} (Used CampusBridge ATS Engine)`] : [])
+        `Connect with verified alumni mentor ${fallbackMentors[0]?.name || 'Verified Alumni'} for a 1-on-1 resume review.`
       ],
-      ai_provider: externalAiErrorNote ? `CampusBridge AI ATS Engine (Fallback: ${externalAiErrorNote})` : 'CampusBridge Real-Time AI ATS Engine'
+      ai_provider: 'CampusBridge AI ATS Engine'
     };
   }
 }
