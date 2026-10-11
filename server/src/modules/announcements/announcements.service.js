@@ -1,5 +1,6 @@
 import { announcementsRepository } from './announcements.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { uploadToCloud } from '../../config/cloudinary.js';
 
 export class AnnouncementsService {
   async getAnnouncements(category, targetDomainId) {
@@ -25,9 +26,17 @@ export class AnnouncementsService {
     }));
   }
 
-  async createAnnouncement(user, { title, content, category, targetDomainId }) {
+  async createAnnouncement(user, file, { title, content, category, targetDomainId, fileUrl }) {
     if (user.role !== 'ADMIN' && user.role !== 'ALUMNI') {
       throw new ApiError(403, 'Only verified mentors or administrators can publish announcements');
+    }
+
+    let attachmentUrl = fileUrl || '';
+    let fileName = '';
+
+    if (file) {
+      attachmentUrl = await uploadToCloud(file.path, 'announcements');
+      fileName = file.originalname;
     }
 
     const announcement = await announcementsRepository.createAnnouncement({
@@ -35,7 +44,9 @@ export class AnnouncementsService {
       title,
       content,
       category: category || 'GENERAL',
-      target_domain_id: targetDomainId || null
+      target_domain_id: targetDomainId || null,
+      file_url: attachmentUrl,
+      file_name: fileName
     });
 
     if (user.role === 'ADMIN') {

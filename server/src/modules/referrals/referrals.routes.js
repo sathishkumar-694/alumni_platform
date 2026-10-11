@@ -3,6 +3,7 @@ import { getAllJobs, createJob, applyForReferral, getMyApplications, getMentorIn
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { authorize, requireVerified } from '../../middleware/role.middleware.js';
 import { validateBody } from '../../middleware/validation.middleware.js';
+import { uploadDocument } from '../../middleware/upload.middleware.js';
 
 const router = Router();
 
@@ -11,8 +12,8 @@ router.use(verifyJWT);
 router.get('/', getAllJobs);
 router.get('/referrals', getAllJobs);
 
-router.post('/referrals', authorize('ALUMNI', 'ADMIN'), requireVerified, validateBody(['title', 'company', 'location']), createJob);
-router.post('/', authorize('ALUMNI', 'ADMIN'), requireVerified, validateBody(['title', 'company', 'location']), createJob);
+router.post('/referrals', authorize('ALUMNI', 'ADMIN'), requireVerified, uploadDocument.single('jdFile'), validateBody(['title', 'company', 'location']), createJob);
+router.post('/', authorize('ALUMNI', 'ADMIN'), requireVerified, uploadDocument.single('jdFile'), validateBody(['title', 'company', 'location']), createJob);
 
 router.post('/:jobId/apply', authorize('STUDENT'), requireVerified, applyForReferral);
 router.post('/referrals/:jobId/apply', authorize('STUDENT'), requireVerified, applyForReferral);

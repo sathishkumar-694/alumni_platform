@@ -15,7 +15,10 @@ import {
   BookMarked,
   Briefcase,
   Award,
-  Video
+  Video,
+  TrendingUp,
+  UserCheck,
+  Clock
 } from 'lucide-react';
 
 export const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -130,41 +133,83 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
         </div>
 
         {/* ========================================================
-            SECTION 1: MAIN WORKSPACE
+            SECTION 0: ADMIN CONTROLS (ADMIN ONLY - PROMINENT AT TOP)
         ======================================================== */}
-        <div style={{ marginBottom: '1.25rem' }}>
-          <div
-            onClick={() => toggleSection('main')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '0.35rem 0.5rem',
-              cursor: 'pointer',
-              color: 'var(--text-subtle)',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              letterSpacing: '0.02em'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <LayoutDashboard size={14} color="var(--text-subtle)" />
-              <span>Main Workspace</span>
+        {isAdmin && (
+          <div style={{ marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-card)' }}>
+            <div
+              onClick={() => toggleSection('admin')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.35rem 0.5rem',
+                cursor: 'pointer',
+                color: 'var(--accent-rose)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em',
+                background: 'rgba(244, 63, 94, 0.08)',
+                borderRadius: '6px'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ShieldCheck size={14} color="var(--accent-rose)" />
+                <span style={{ color: 'var(--accent-rose)' }}>Admin Controls</span>
+              </div>
+              {openSections.admin ? <ChevronDown size={13} color="var(--accent-rose)" /> : <ChevronRight size={13} color="var(--accent-rose)" />}
             </div>
-            {openSections.main ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
-          </div>
 
-          {openSections.main && (
-            <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              {renderNavItem(
-                'dashboard',
-                isStudent ? 'Student Dashboard' : isAlumni ? 'Mentor Dashboard' : isAdmin ? 'Admin Operations Center' : 'Dashboard Overview',
-                LayoutDashboard
-              )}
-              {renderNavItem('explore', 'Technical Domain Directory', Compass)}
+            {openSections.admin && (
+              <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                {renderNavItem('admin_analytics', 'Overview & Analytics', TrendingUp)}
+                {renderNavItem('admin_verifications', 'Pending ID Verifications', UserCheck)}
+                {renderNavItem('admin_matrix', 'Active Mentorship Pairings', Users)}
+                {renderNavItem('admin_requests', 'Mentorship Requests', Clock)}
+                {renderNavItem('admin_users', 'User Accounts & Overrides', User)}
+                {renderNavItem('admin_domains', 'Technical Domains & Requests', Compass)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            SECTION 1: MAIN WORKSPACE (STUDENTS & ALUMNI ONLY - HIDDEN FOR ADMIN)
+        ======================================================== */}
+        {!isAdmin && (
+          <div style={{ marginBottom: '1.25rem' }}>
+            <div
+              onClick={() => toggleSection('main')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.35rem 0.5rem',
+                cursor: 'pointer',
+                color: 'var(--text-subtle)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.02em'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <LayoutDashboard size={14} color="var(--text-subtle)" />
+                <span>Main Workspace</span>
+              </div>
+              {openSections.main ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
             </div>
-          )}
-        </div>
+
+            {openSections.main && (
+              <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                {renderNavItem(
+                  'dashboard',
+                  isStudent ? 'Student Dashboard' : 'Mentor Dashboard',
+                  LayoutDashboard
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ========================================================
             SECTION 2: ROLE-BASED MENTORSHIP & AI TOOLS
@@ -188,7 +233,11 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Users size={14} color="var(--text-subtle)" />
                 <span>
-                  {isStudent ? 'My Mentorship & Academics' : isAlumni ? 'My Mentee Management' : 'Mentorship Oversight'}
+                  {isAdmin
+                    ? 'Mentorship Oversight & Practice'
+                    : isStudent
+                    ? 'My Mentorship & Academics'
+                    : 'My Mentee Management'}
                 </span>
               </div>
               {openSections.mentorship ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
@@ -196,16 +245,22 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
 
             {openSections.mentorship && (
               <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                {isAdmin && renderNavItem('dashboard', 'Mentor Dashboard', LayoutDashboard)}
+                {renderNavItem('explore', 'Technical Domain Directory', Compass)}
                 {renderNavItem('resume_analyzer', 'AI Resume Analyzer', Sparkles)}
                 {isStudent && renderNavItem('recommended_mentors', 'Recommended Mentors', Award)}
+                <button
+                  type="button"
+                  style={{ display: 'none' }}
+                />
                 {renderNavItem(
                   'active_mentorships',
-                  isStudent ? 'My Alumni Mentors' : isAlumni ? 'Active Student Mentees' : 'All Active Mentorships',
+                  isStudent ? 'My Alumni Mentors' : 'Active Student Mentees',
                   Users
                 )}
                 {renderNavItem(
                   'requests',
-                  isStudent ? 'My Sent Requests' : isAlumni ? 'Incoming Mentee Requests' : 'All Pending Requests',
+                  isStudent ? 'My Sent Requests' : 'Incoming Mentee Requests',
                   MessageSquare
                 )}
                 {renderNavItem('sessions', '1-on-1 Virtual Sessions', Video)}
@@ -247,40 +302,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
             </div>
           )}
         </div>
-
-        {/* ========================================================
-            SECTION 4: ADMIN MANAGEMENT (ADMIN ONLY)
-        ======================================================== */}
-        {isAdmin && (
-          <div style={{ marginBottom: '1.25rem' }}>
-            <div
-              onClick={() => toggleSection('admin')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.35rem 0.5rem',
-                cursor: 'pointer',
-                color: 'var(--text-subtle)',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                letterSpacing: '0.02em'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldCheck size={14} color="var(--accent-rose)" />
-                <span style={{ color: 'var(--accent-rose)' }}>Admin Controls</span>
-              </div>
-              {openSections.admin ? <ChevronDown size={13} color="var(--text-subtle)" /> : <ChevronRight size={13} color="var(--text-subtle)" />}
-            </div>
-
-            {openSections.admin && (
-              <div style={{ marginTop: '0.35rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                {renderNavItem('admin_operations', 'Operations Center', ShieldCheck)}
-              </div>
-            )}
-          </div>
-        )}
 
       </div>
     </aside>

@@ -24,5 +24,7 @@ export const config = {
     apiSecret: cleanEnv(process.env.CLOUDINARY_API_SECRET, '')
   },
   openaiApiKey: cleanEnv(process.env.OPENAI_API_KEY, ''),
-  geminiApiKey: cleanEnv(process.env.GEMINI_API_KEY, '')
+  geminiApiKey: cleanEnv(process.env.GEMINI_API_KEY, ''),
+  groqApiKey: cleanEnv(process.env.GROQ_API_KEY, '')
 };
+

@@ -26,8 +26,12 @@ export const updateSessionNotes = asyncHandler(async (req, res) => {
 });
 
 export const createMilestone = asyncHandler(async (req, res) => {
-  const { mentorshipId, title, description, dueDate } = req.body;
-  const result = await sessionsService.createMilestone(mentorshipId, { title, description, dueDate });
+  const { mentorshipId, title, description, dueDate, resourceUrl, resource_url } = req.body;
+  const result = await sessionsService.createMilestone(
+    mentorshipId,
+    { title, description, dueDate, resourceUrl: resourceUrl || resource_url },
+    req.file
+  );
   return res.status(201).json(
     new ApiResponse(201, result, 'Milestone added to roadmap')
   );

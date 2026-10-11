@@ -49,6 +49,28 @@ export class VerificationService {
       `Admin updated user ${user.email} status to ${status}.${reason ? ` Reason: ${reason}` : ''}`
     );
 
+    if (status === 'REJECTED') {
+      import('../notifications/notifications.service.js').then(({ notificationsService }) => {
+        notificationsService.createNotification({
+          user_id: userId,
+          type: 'VERIFICATION_REJECTED',
+          title: 'ID Verification Rejected',
+          desc: reason ? `Your institutional ID verification was declined. Reason: ${reason}` : 'Your institutional ID verification was declined. Please re-upload valid credentials.',
+          target_tab: 'profile'
+        }).catch(() => {});
+      }).catch(() => {});
+    } else if (status === 'VERIFIED') {
+      import('../notifications/notifications.service.js').then(({ notificationsService }) => {
+        notificationsService.createNotification({
+          user_id: userId,
+          type: 'VERIFICATION_APPROVED',
+          title: '✅ ID Verification Approved!',
+          desc: 'Congratulations! Your institutional verification has been approved by the Administrator. Full platform features are unlocked.',
+          target_tab: 'dashboard'
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     return updatedUser;
   }
 }

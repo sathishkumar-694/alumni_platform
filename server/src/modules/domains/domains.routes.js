@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getDomains,
+  getDomainDetails,
   toggleStudentInterest,
   toggleAlumniExpertise,
   requestDomain,
@@ -14,6 +15,8 @@ import { verifyJWT } from '../../middleware/auth.middleware.js';
 const router = Router();
 
 router.get('/', getDomains);
+router.get('/:domainId/details', getDomainDetails);
+router.get('/:domainId', getDomainDetails);
 
 router.use(verifyJWT);
 

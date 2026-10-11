@@ -9,10 +9,18 @@ import {
 } from './sessions.controller.js';
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { validateBody } from '../../middleware/validation.middleware.js';
+import { uploadDocument } from '../../middleware/upload.middleware.js';
 
 const router = Router();
 
 router.use(verifyJWT);
+
+// Milestones Endpoints (with full alias support & material file upload)
+router.post('/milestones', uploadDocument.single('resourceFile'), validateBody(['mentorshipId', 'title']), createMilestone);
+router.get('/milestones/mentorship/:mentorshipId', getMilestonesByMentorship);
+router.get('/milestones/:mentorshipId', getMilestonesByMentorship);
+router.patch('/milestones/:milestoneId', validateBody(['status']), updateMilestoneStatus);
+router.post('/milestones/:milestoneId', validateBody(['status']), updateMilestoneStatus);
 
 // Sessions Endpoints (with full alias support)
 router.post('/sessions', createSession);
@@ -31,13 +39,5 @@ router.post('/sessions/:sessionId/notes', updateSessionNotes);
 router.post('/sessions/:sessionId', updateSessionNotes);
 router.post('/:sessionId/notes', updateSessionNotes);
 router.post('/:sessionId', updateSessionNotes);
-
-// Milestones Endpoints (with full alias support)
-router.post('/milestones', validateBody(['mentorshipId', 'title']), createMilestone);
-router.get('/milestones/mentorship/:mentorshipId', getMilestonesByMentorship);
-router.get('/milestones/:mentorshipId', getMilestonesByMentorship);
-
-router.patch('/milestones/:milestoneId', validateBody(['status']), updateMilestoneStatus);
-router.post('/milestones/:milestoneId', validateBody(['status']), updateMilestoneStatus);
 
 export default router;

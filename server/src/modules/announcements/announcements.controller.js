@@ -11,7 +11,7 @@ export const getAnnouncements = asyncHandler(async (req, res) => {
 });
 
 export const createAnnouncement = asyncHandler(async (req, res) => {
-  const result = await announcementsService.createAnnouncement(req.user, req.body);
+  const result = await announcementsService.createAnnouncement(req.user, req.file, req.body);
   return res.status(201).json(
     new ApiResponse(201, result, 'Announcement published successfully')
   );

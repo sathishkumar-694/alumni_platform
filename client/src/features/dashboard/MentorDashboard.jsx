@@ -58,19 +58,24 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
     }
   };
 
+  const [declineModal, setDeclineModal] = useState(null);
+  const [declineReason, setDeclineReason] = useState('');
+
   useEffect(() => {
-    if (user?.role === 'ALUMNI') {
+    if (user?.role === 'ALUMNI' || user?.role === 'ADMIN') {
       fetchData();
     }
   }, [user]);
 
-  const handleRespond = async (requestId, action) => {
+  const handleRespond = async (requestId, action, reason = '') => {
     try {
       await apiClient(`/mentorship/requests/${requestId}/respond`, {
         method: 'POST',
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, reason })
       });
-      showNotification(`Mentorship request ${action.toLowerCase()}ed!`, 'success');
+      showNotification(`Mentorship request ${action === 'ACCEPT' ? 'accepted' : 'declined'}!`, 'success');
+      setDeclineModal(null);
+      setDeclineReason('');
       fetchData();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -91,16 +96,16 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
     }
   };
 
-  if (user?.role !== 'ALUMNI') return null;
+  if (user?.role !== 'ALUMNI' && user?.role !== 'ADMIN') return null;
 
   const activeList = activeMentorships.filter(m => m.status === 'ACTIVE');
   const completedList = activeMentorships.filter(m => m.status === 'COMPLETED');
 
-  const maxCap = user.profile?.max_capacity || 5;
-  const currCap = user.profile?.current_capacity || activeList.length;
+  const maxCap = user?.profile?.max_capacity || 5;
+  const currCap = user?.profile?.current_capacity || activeList.length;
   const availableSlots = Math.max(0, maxCap - currCap);
 
-  const cardUrl = user.profile?.alumni_id_card_url;
+  const cardUrl = user?.profile?.alumni_id_card_url;
 
   return (
     <div style={{ maxWidth: '1280px', margin: '2rem auto', padding: '0 1.5rem' }}>
@@ -272,7 +277,7 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
                     <button onClick={() => handleRespond(r.id, 'ACCEPT')} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                       <Check size={16} /> Accept Request
                     </button>
-                    <button onClick={() => handleRespond(r.id, 'REJECT')} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                    <button onClick={() => setDeclineModal({ requestId: r.id, studentName: r.student_name })} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
                       <X size={16} /> Decline
                     </button>
                   </div>
@@ -369,6 +374,56 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
           onClose={() => setSchedulerMentorshipId(null)}
           onSuccess={fetchData}
         />
+      )}
+
+      {/* Decline Mentorship Request Reason Modal */}
+      {declineModal && (
+        <div className="modal-overlay" onClick={() => setDeclineModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '1.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                Decline Mentorship Request
+              </h3>
+              <button
+                onClick={() => setDeclineModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+              Please provide a reason for declining <strong>{declineModal.studentName}</strong>'s request. This feedback will be sent directly to the student mentee.
+            </p>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                Decline Reason & Feedback:
+              </label>
+              <textarea
+                rows={4}
+                className="form-input"
+                placeholder="e.g., Currently at full mentorship capacity this semester; recommend exploring mentors specialized in Cloud Architecture..."
+                value={declineReason}
+                onChange={(e) => setDeclineReason(e.target.value)}
+                style={{ width: '100%', resize: 'vertical', fontSize: '0.85rem' }}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button onClick={() => setDeclineModal(null)} className="btn btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRespond(declineModal.requestId, 'REJECT', declineReason)}
+                className="btn btn-danger btn-sm"
+              >
+                Confirm Decline
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

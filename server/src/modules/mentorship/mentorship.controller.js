@@ -11,10 +11,10 @@ export const createRequest = asyncHandler(async (req, res) => {
 
 export const respondToRequest = asyncHandler(async (req, res) => {
   const { requestId } = req.params;
-  const { action } = req.body;
-  const result = await mentorshipService.respondToRequest(req.user, requestId, action);
+  const { action, reason } = req.body;
+  const result = await mentorshipService.respondToRequest(req.user, requestId, action, reason);
   return res.status(200).json(
-    new ApiResponse(200, result, `Mentorship request ${action === 'ACCEPT' ? 'accepted' : 'rejected'}`)
+    new ApiResponse(200, result, `Mentorship request ${action === 'ACCEPT' ? 'accepted' : 'declined'}`)
   );
 });
 

@@ -33,11 +33,33 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
   const filteredMentors = searchQuery ? mentors.filter(m => {
     const q = searchQuery.toLowerCase().trim();
     const nameMatch = m.name && m.name.toLowerCase().includes(q);
-    const companyMatch = m.company && m.company.toLowerCase().includes(q);
-    const designationMatch = m.designation && m.designation.toLowerCase().includes(q);
-    const bioMatch = m.bio && m.bio.toLowerCase().includes(q);
-    const expertiseMatch = Array.isArray(m.expertise) && m.expertise.some(e => String(e).toLowerCase().includes(q));
-    return nameMatch || companyMatch || designationMatch || bioMatch || expertiseMatch;
+    const company = m.profile?.company || m.company || '';
+    const companyMatch = company.toLowerCase().includes(q);
+    const designation = m.profile?.designation || m.designation || '';
+    const designationMatch = designation.toLowerCase().includes(q);
+    const bio = m.profile?.bio || m.bio || '';
+    const bioMatch = bio.toLowerCase().includes(q);
+    
+    // Check expertise array (IDs or strings)
+    const expertiseList = m.profile?.expertise || m.expertise || [];
+    const expertiseMatch = Array.isArray(expertiseList) && expertiseList.some(e => String(e).toLowerCase().includes(q));
+
+    // Check expertise_domains objects (name, category, description)
+    const domainObjMatch = Array.isArray(m.expertise_domains) && m.expertise_domains.some(d =>
+      (d.name && d.name.toLowerCase().includes(q)) ||
+      (d.category && d.category.toLowerCase().includes(q)) ||
+      (d.description && d.description.toLowerCase().includes(q))
+    );
+
+    // Check covered skill gaps (from AI evaluation)
+    const skillGapsMatch = Array.isArray(m.covered_skill_gaps) && m.covered_skill_gaps.some(g => String(g).toLowerCase().includes(q));
+
+    // Check level badge / company tier badge
+    const badgeMatch = (m.level_info?.badge && m.level_info.badge.toLowerCase().includes(q)) ||
+      (m.level_info?.title && m.level_info.title.toLowerCase().includes(q)) ||
+      (m.company_tier?.tier_name && m.company_tier.tier_name.toLowerCase().includes(q));
+
+    return nameMatch || companyMatch || designationMatch || bioMatch || expertiseMatch || domainObjMatch || skillGapsMatch || badgeMatch;
   }) : mentors;
 
   if (user?.verification_status !== 'VERIFIED') {
@@ -113,9 +135,16 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
                         <h4 style={{ fontSize: '1.15rem', color: 'var(--text-main)', fontWeight: 700, margin: 0 }}>
                           {mentor.name}
                         </h4>
-                        <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>
-                          ID: ALUM-#{mentor.id}
-                        </span>
+                        {mentor.level_info && (
+                          <span className="badge" style={{ fontSize: '0.68rem', background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6', borderColor: '#8b5cf6', fontWeight: 800 }}>
+                            {mentor.level_info.badge}
+                          </span>
+                        )}
+                        {mentor.company_tier && (
+                          <span className="badge badge-cyan" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                            {mentor.company_tier.tier_badge}
+                          </span>
+                        )}
                       </div>
                       <p style={{ fontSize: '0.825rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem', margin: 0 }}>
                         <Briefcase size={13} /> {mentor.profile.designation} at {mentor.profile.company}
@@ -132,6 +161,17 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
                     </span>
                   </div>
                 </div>
+
+                {/* Achievements Accolades Badges */}
+                {mentor.achievements && mentor.achievements.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.85rem' }}>
+                    {mentor.achievements.slice(0, 3).map((ach) => (
+                      <span key={ach.id} className={`badge badge-${ach.variant || 'purple'}`} style={{ fontSize: '0.68rem', padding: '0.18rem 0.45rem' }}>
+                        {ach.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div style={{ background: 'var(--bg-subtle)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-card)', marginBottom: '1rem' }}>
                   <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', fontStyle: 'italic', margin: 0, lineHeight: '1.45' }}>

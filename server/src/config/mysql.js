@@ -51,7 +51,8 @@ const inMemoryStore = {
   domain_requests: [],
   job_referrals: [],
   referral_applications: [],
-  notifications: []
+  notifications: [],
+  resume_analyses: []
 };
 
 let isUseInMemoryFallback = false;
@@ -266,9 +267,16 @@ export const ensureDatabaseSchema = async () => {
         \`description\` TEXT,
         \`due_date\` DATETIME NOT NULL,
         \`status\` ENUM('PENDING', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED') NOT NULL DEFAULT 'PENDING',
-        \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
+        \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP,
+        \`resource_url\` TEXT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    try {
+      await connectionPool.query(`ALTER TABLE \`milestones\` ADD COLUMN \`resource_url\` TEXT NULL;`);
+    } catch (e) {
+      // Column may already exist
+    }
 
     // 9. Resources Table
     await connectionPool.query(`
@@ -291,10 +299,21 @@ export const ensureDatabaseSchema = async () => {
         \`author_id\` VARCHAR(100) NOT NULL,
         \`title\` VARCHAR(255) NOT NULL,
         \`content\` TEXT NOT NULL,
+        \`category\` VARCHAR(100) DEFAULT 'GENERAL',
+        \`target_domain_id\` VARCHAR(100),
+        \`file_url\` TEXT,
+        \`file_name\` VARCHAR(255),
         \`target_role\` ENUM('ALL', 'STUDENT', 'ALUMNI') DEFAULT 'ALL',
         \`created_at\` DATETIME DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    try {
+      await connectionPool.query("ALTER TABLE `announcements` ADD COLUMN `file_url` TEXT");
+    } catch (e) {}
+    try {
+      await connectionPool.query("ALTER TABLE `announcements` ADD COLUMN `file_name` VARCHAR(255)");
+    } catch (e) {}
 
     // 11. Audit Logs Table
     await connectionPool.query(`
@@ -322,6 +341,8 @@ export const ensureDatabaseSchema = async () => {
         \`name\` VARCHAR(255) NOT NULL,
         \`category\` VARCHAR(100) DEFAULT 'General Engineering',
         \`description\` TEXT NOT NULL,
+        \`file_url\` TEXT NULL,
+        \`file_name\` VARCHAR(255) NULL,
         \`icon\` VARCHAR(50) DEFAULT 'Code',
         \`is_archived\` TINYINT(1) DEFAULT 0,
         \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -404,6 +425,40 @@ export const ensureDatabaseSchema = async () => {
         INDEX \`idx_user_notif\` (\`user_id\`, \`is_read\`, \`created_at\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    // Create Real-Time AI ATS Resume Analyses History Table
+    await connectionPool.query(`
+      CREATE TABLE IF NOT EXISTS \`resume_analyses\` (
+        \`id\` VARCHAR(100) PRIMARY KEY,
+        \`user_id\` VARCHAR(100) NOT NULL,
+        \`file_name\` VARCHAR(255) DEFAULT 'resume.pdf',
+        \`target_role\` VARCHAR(255) NOT NULL,
+        \`ats_score\` INT NOT NULL DEFAULT 75,
+        \`keyword_match_score\` INT NOT NULL DEFAULT 70,
+        \`impact_score\` INT NOT NULL DEFAULT 65,
+        \`format_score\` INT NOT NULL DEFAULT 85,
+        \`technical_depth_score\` INT NOT NULL DEFAULT 75,
+        \`detected_skills\` JSON,
+        \`missing_skills\` JSON,
+        \`actionable_advice\` JSON,
+        \`matched_mentors\` JSON,
+        \`backup_url\` TEXT,
+        \`backup_provider\` VARCHAR(100),
+        \`ai_provider\` VARCHAR(100),
+        \`is_online_model\` TINYINT(1) DEFAULT 1,
+        \`latency_ms\` INT DEFAULT 0,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX \`idx_resume_analyses_user\` (\`user_id\`, \`created_at\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Auto-migration for job_referrals file attachment
+    try {
+      await connectionPool.query("ALTER TABLE \`job_referrals\` ADD COLUMN \`file_url\` TEXT NULL");
+    } catch (_) {}
+    try {
+      await connectionPool.query("ALTER TABLE \`job_referrals\` ADD COLUMN \`file_name\` VARCHAR(255) NULL");
+    } catch (_) {}
 
   } catch (err) {
     console.warn('[Database Schema Warning]:', err.message);

@@ -5,6 +5,10 @@ export class ReferralsRepository {
     return await db.jobReferrals.find();
   }
 
+  async findJobById(id) {
+    return await db.jobReferrals.findById(id);
+  }
+
   async createJob(data) {
     return await db.jobReferrals.create(data);
   }

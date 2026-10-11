@@ -43,7 +43,7 @@ export class DomainsRepository {
   }
 
   async updateStudentProfile(userId, updates) {
-    return await db.studentProfiles.update(userId, updates);
+    return await db.studentProfiles.createOrUpdate(userId, updates);
   }
 
   async findAlumniProfileByUserId(userId) {
@@ -51,7 +51,7 @@ export class DomainsRepository {
   }
 
   async updateAlumniProfile(userId, updates) {
-    return await db.alumniProfiles.update(userId, updates);
+    return await db.alumniProfiles.createOrUpdate(userId, updates);
   }
 
   async findAllStudentProfiles() {

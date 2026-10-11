@@ -29,7 +29,12 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     if (user) {
       fetchNotifications();
       const interval = setInterval(fetchNotifications, 15000);
-      return () => clearInterval(interval);
+      const handleNotificationRefresh = () => fetchNotifications();
+      window.addEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
+      };
     }
   }, [user?.id]);
 
@@ -151,33 +156,8 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
         </h2>
       </div>
 
-      {/* Center Search Input Pill */}
-      {!isPublicLanding ? (
-        <div style={{ flex: 1, margin: '0 1.5rem' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
-            <Search size={15} color="var(--text-subtle)" style={{ position: 'absolute', left: '0.85rem' }} />
-            <input
-              id="global-header-search"
-              type="text"
-              className="form-input"
-              placeholder="Search mentors, domains, job referrals... (Press / to focus)"
-              value={searchQuery}
-              onChange={handleInputChange}
-              onKeyDown={handleSearchSubmit}
-              style={{
-                width: '100%',
-                paddingLeft: '2.5rem',
-                paddingRight: '2rem',
-                height: '38px',
-                fontSize: '0.85rem',
-                borderRadius: '20px',
-                background: 'var(--bg-subtle)',
-                border: '1px solid var(--border-card)'
-              }}
-            />
-          </div>
-        </div>
-      ) : <div style={{ flex: 1 }} />}
+      {/* Center Spacer */}
+      <div style={{ flex: 1 }} />
 
       {/* Header Actions (Right) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>

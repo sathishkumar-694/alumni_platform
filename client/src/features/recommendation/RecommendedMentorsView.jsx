@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { RecommendedMentorsGrid } from './RecommendedMentorsGrid';
 import { RequestMentorshipModal } from '../mentorship/RequestMentorshipModal';
-import { Sparkles, Award, Users, Compass } from 'lucide-react';
+import { Sparkles, Award, Users, Compass, Search, X } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 
 export const RecommendedMentorsView = ({ onRequestMentorship, searchQuery = '' }) => {
   const { user } = useAuth();
   const [selectedMentor, setSelectedMentor] = useState(null);
+  const [mentorSearch, setMentorSearch] = useState(searchQuery || '');
 
   const handleRequest = (mentor) => {
     if (onRequestMentorship) {
@@ -15,6 +16,8 @@ export const RecommendedMentorsView = ({ onRequestMentorship, searchQuery = '' }
       setSelectedMentor(mentor);
     }
   };
+
+  const activeSearch = mentorSearch || searchQuery;
 
   return (
     <div style={{ maxWidth: '1280px', margin: '1.5rem auto', padding: '0 1.5rem' }}>
@@ -68,8 +71,49 @@ export const RecommendedMentorsView = ({ onRequestMentorship, searchQuery = '' }
         </div>
       </div>
 
+      {/* In-Page Search Bar */}
+      <div style={{ marginBottom: '1.75rem', maxWidth: '640px' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={18} color="var(--text-subtle)" style={{ position: 'absolute', left: '1rem' }} />
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Search mentor by name, company, designation, skill or domain (e.g. Sarah, Google, Cloud, Python)..."
+            value={mentorSearch}
+            onChange={(e) => setMentorSearch(e.target.value)}
+            style={{
+              width: '100%',
+              paddingLeft: '2.75rem',
+              paddingRight: '2.5rem',
+              height: '44px',
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border-card)'
+            }}
+          />
+          {mentorSearch && (
+            <button
+              onClick={() => setMentorSearch('')}
+              style={{
+                position: 'absolute',
+                right: '0.75rem',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-subtle)',
+                padding: '0.25rem'
+              }}
+              title="Clear search"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Recommended Mentors Grid Component */}
-      <RecommendedMentorsGrid onRequestMentorship={handleRequest} hideHeader={true} searchQuery={searchQuery} />
+      <RecommendedMentorsGrid onRequestMentorship={handleRequest} hideHeader={true} searchQuery={activeSearch} />
 
       {/* Request Mentorship Modal */}
       {selectedMentor && (

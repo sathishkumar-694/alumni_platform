@@ -46,7 +46,8 @@ const getInitialTab = () => {
 const knownTabs = [
   'home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404',
   'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile',
-  'resume_analyzer', 'recommended_mentors', 'referrals', 'admin_operations'
+  'resume_analyzer', 'recommended_mentors', 'referrals',
+  'admin_operations', 'admin_analytics', 'admin_verifications', 'admin_matrix', 'admin_requests', 'admin_users', 'admin_domains'
 ];
 
 const MainContent = () => {
@@ -187,7 +188,7 @@ const MainContent = () => {
             {/* Master Technical Domain Directory */}
             {activeTab === 'explore' && (
               <DomainExplorer
-                onOpenCreateDomain={() => handleSetActiveTab('admin_operations')}
+                onOpenCreateDomain={() => handleSetActiveTab('admin_domains')}
                 onRequestMentorship={(mentor) => setSelectedMentorForRequest(mentor)}
                 searchQuery={searchQuery}
               />
@@ -204,19 +205,25 @@ const MainContent = () => {
             {/* Alumni Job Referral Portal */}
             {activeTab === 'referrals' && <JobReferralPortal />}
 
-            {/* Admin Operations Center Exclusive Tab */}
-            {user && activeTab === 'admin_operations' && (
+            {/* Admin Operations Center Dedicated Tabs */}
+            {user && (
+              activeTab === 'admin_operations' ||
+              activeTab === 'admin_analytics' ||
+              activeTab === 'admin_verifications' ||
+              activeTab === 'admin_matrix' ||
+              activeTab === 'admin_requests' ||
+              activeTab === 'admin_users' ||
+              activeTab === 'admin_domains'
+            ) && (
               <AdminOperationsCenter activeSection={activeTab} />
             )}
 
             {/* User Specific Views (Dashboard, Active Mentorships, Requests, Sessions) */}
             {user && (activeTab === 'dashboard' || activeTab === 'active_mentorships' || activeTab === 'requests' || activeTab === 'sessions') && (
-              user.role === 'ADMIN' ? (
-                <AdminOperationsCenter activeSection={activeTab} />
-              ) : user.role === 'ALUMNI' ? (
-                <MentorDashboard activeSection={activeTab} />
-              ) : (
+              user.role === 'STUDENT' ? (
                 <StudentDashboard activeSection={activeTab} />
+              ) : (
+                <MentorDashboard activeSection={activeTab} />
               )
             )}
 
@@ -359,14 +366,6 @@ const MainContent = () => {
           )}
         </div>
       </div>
-
-      {/* Sticky Mobile Call to Action (Item 11) */}
-      <StickyMobileCTA
-        user={user}
-        onOpenRegister={() => setIsRegisterStudentOpen(true)}
-        onNavigateExplore={() => handleSetActiveTab('explore')}
-        onNavigateResumeAnalyzer={() => handleSetActiveTab('resume_analyzer')}
-      />
 
       {/* Cookie Consent Banner (Item 17) */}
       <CookieConsentBanner

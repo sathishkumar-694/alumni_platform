@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, Calendar, Clock, Video, CheckCircle2 } from 'lucide-react';
+import { X, Calendar, Clock, Video, CheckCircle2, Sparkles, RefreshCw, ExternalLink } from 'lucide-react';
 
 export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess }) => {
   const { showNotification } = useNotification();
@@ -10,8 +10,42 @@ export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess
   const [slot2, setSlot2] = useState('');
   const [slot3, setSlot3] = useState('');
   const [durationMins, setDurationMins] = useState(45);
-  const [meetingLink, setMeetingLink] = useState('https://meet.google.com/campusbridge-live');
+  
+  // Platform selection: 'jitsi' | 'gmeet' | 'zoom'
+  const [platformType, setPlatformType] = useState('jitsi');
+  const [meetingLink, setMeetingLink] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Generate unique built-in Jitsi room link
+  const createJitsiRoomUrl = (customTopic) => {
+    const slug = Math.random().toString(36).substring(2, 7);
+    const safeTopic = (customTopic || topic || 'Mentorship').replace(/[^a-zA-Z0-9]/g, '-');
+    return `https://meet.jit.si/CampusBridge-${safeTopic}-${mentorshipId || 'session'}-${slug}`;
+  };
+
+  useEffect(() => {
+    if (isOpen && !meetingLink) {
+      setMeetingLink(createJitsiRoomUrl());
+    }
+  }, [isOpen]);
+
+  const handleGenerateJitsiLink = () => {
+    const freshUrl = createJitsiRoomUrl();
+    setMeetingLink(freshUrl);
+    setPlatformType('jitsi');
+    showNotification('Fresh built-in Jitsi Meet room generated!', 'success');
+  };
+
+  const handleSelectPlatform = (platform) => {
+    setPlatformType(platform);
+    if (platform === 'jitsi') {
+      setMeetingLink(createJitsiRoomUrl());
+    } else if (platform === 'gmeet') {
+      setMeetingLink('https://meet.google.com/new');
+    } else if (platform === 'zoom') {
+      setMeetingLink('https://zoom.us/join');
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -33,7 +67,7 @@ export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess
           topic,
           proposedSlots,
           durationMins,
-          meetingLink
+          meetingLink: meetingLink || createJitsiRoomUrl()
         })
       });
       showNotification('Session request with proposed convenient slots sent to your mentor!', 'success');
@@ -48,12 +82,12 @@ export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
             <span className="badge badge-purple" style={{ marginBottom: '0.25rem' }}>1-on-1 Guidance</span>
             <h2 style={{ fontSize: '1.5rem', color: '#0f172a' }}>Request 1-on-1 Session</h2>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Propose 2-3 convenient time slots for your alumni mentor to choose from</p>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Propose convenient slots & select video conference platform</p>
           </div>
           <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
             <X size={18} />
@@ -112,34 +146,83 @@ export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
-              <label className="form-label">Duration (Minutes)</label>
-              <select
-                className="form-select"
-                value={durationMins}
-                onChange={(e) => setDurationMins(e.target.value)}
+          {/* Meeting Platform Picker & Jitsi Link Generator */}
+          <div style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border-card)', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+              <label className="form-label" style={{ margin: 0, fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                Meeting Platform Selection:
+              </label>
+              <button
+                type="button"
+                onClick={handleGenerateJitsiLink}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.725rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)', borderColor: 'var(--primary)' }}
               >
-                <option value={30}>30 Minutes</option>
-                <option value={45}>45 Minutes</option>
-                <option value={60}>60 Minutes</option>
-              </select>
+                <RefreshCw size={12} /> Regenerate Jitsi Room
+              </button>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Virtual Meeting URL</label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => handleSelectPlatform('jitsi')}
+                className={`btn btn-sm ${platformType === 'jitsi' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+              >
+                <Sparkles size={13} /> Built-in Jitsi Meet
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPlatform('gmeet')}
+                className={`btn btn-sm ${platformType === 'gmeet' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+              >
+                Google Meet
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectPlatform('zoom')}
+                className={`btn btn-sm ${platformType === 'zoom' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ flex: 1, fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+              >
+                Zoom
+              </button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '0.4rem' }}>
+              <label className="form-label" style={{ fontSize: '0.75rem' }}>Meeting Room URL</label>
               <input
                 type="url"
                 className="form-input"
-                placeholder="https://meet.google.com/..."
+                placeholder="https://meet.jit.si/... or https://meet.google.com/..."
                 value={meetingLink}
                 onChange={(e) => setMeetingLink(e.target.value)}
                 required
+                style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}
               />
             </div>
+
+            <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', margin: 0, lineHeight: 1.4 }}>
+              {platformType === 'jitsi'
+                ? '✨ Built-in Jitsi: Free, 100% in-browser WebRTC call with live code sandbox, architecture whiteboard, and chat. No external login needed!'
+                : 'Enter your custom meeting URL. Both you and your mentor will receive this link upon slot confirmation.'}
+            </p>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={submitting}>
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Duration (Minutes)</label>
+            <select
+              className="form-select"
+              value={durationMins}
+              onChange={(e) => setDurationMins(e.target.value)}
+            >
+              <option value={30}>30 Minutes</option>
+              <option value={45}>45 Minutes</option>
+              <option value={60}>60 Minutes</option>
+            </select>
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
             <Calendar size={16} /> {submitting ? 'Submitting Request...' : 'Send Session Request to Mentor'}
           </button>
         </form>

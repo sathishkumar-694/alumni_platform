@@ -10,7 +10,7 @@ export const getAllJobs = asyncHandler(async (req, res) => {
 });
 
 export const createJob = asyncHandler(async (req, res) => {
-  const result = await referralsService.createJob(req.user, req.body);
+  const result = await referralsService.createJob(req.user, req.body, req.file);
   return res.status(201).json(
     new ApiResponse(201, result, 'Internal job referral drive created in database successfully')
   );

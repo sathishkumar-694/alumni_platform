@@ -178,4 +178,5 @@ const startServer = async (portToTry) => {
   });
 };
 
+
 startServer(Number(config.port) || 5001);

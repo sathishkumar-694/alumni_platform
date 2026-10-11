@@ -122,7 +122,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Full Name</label>
+              <label className="form-label">Full Name <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -134,7 +134,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">University Email</label>
+              <label className="form-label">University Email <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="email"
                 className="form-input"
@@ -148,7 +148,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Register Number</label>
+              <label className="form-label">Register Number <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -160,7 +160,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Password</label>
+              <label className="form-label">Password <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="password"
                 className="form-input"
@@ -174,7 +174,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Academic Year</label>
+              <label className="form-label">Academic Year <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <select
                 className="form-select"
                 value={formData.academicYear}
@@ -191,7 +191,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Department</label>
+              <label className="form-label">Department <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -215,7 +215,7 @@ export const StudentRegisterModal = ({ isOpen, onClose }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Upload Student ID Card Photo (PNG, JPG, WEBP, SVG Only)</label>
+            <label className="form-label">Upload Student ID Card Photo (PNG, JPG, WEBP, SVG) <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
             <div
               style={{
                 border: '2px dashed var(--border-strong)',

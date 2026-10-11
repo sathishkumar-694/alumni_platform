@@ -165,5 +165,14 @@ export const apiClient = async (endpoint, options = {}) => {
     throw new Error(data.message || 'An error occurred while communicating with the server');
   }
 
+  // Automatically refresh notifications across UI after state mutations
+  if (options.method && options.method.toUpperCase() !== 'GET' && !rawEndpoint.includes('/notifications')) {
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('campusbridge:notification_refresh'));
+      }, 150);
+    }
+  }
+
   return data;
 };

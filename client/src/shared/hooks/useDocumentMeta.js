@@ -53,6 +53,30 @@ const tabMeta = {
     title: 'Admin Operations Center | CampusBridge',
     description: 'Manage user verifications, mentorship pairings, domain approvals, and platform analytics as CampusBridge administrator.'
   },
+  admin_analytics: {
+    title: 'Overview & Platform Analytics | CampusBridge Admin',
+    description: 'Real-time KPI metrics, active session completion statistics, and mentorship tracking.'
+  },
+  admin_verifications: {
+    title: 'Pending ID Verifications | CampusBridge Admin',
+    description: 'Review institutional credentials and student ID verification requests.'
+  },
+  admin_matrix: {
+    title: 'Active Mentorship Pairings Matrix | CampusBridge Admin',
+    description: 'Monitor active mentorship pairings and execute mentor reassignments.'
+  },
+  admin_requests: {
+    title: 'Mentorship Requests Oversight | CampusBridge Admin',
+    description: 'Track all incoming mentorship requests across students and alumni mentors.'
+  },
+  admin_users: {
+    title: 'User Accounts & Capacity Overrides | CampusBridge Admin',
+    description: 'Manage platform user accounts, roles, mentee limits, and account credentials.'
+  },
+  admin_domains: {
+    title: 'Technical Domain Directory Management | CampusBridge Admin',
+    description: 'Approve new technical domain requests and configure institutional learning categories.'
+  },
   privacy: {
     title: 'Privacy Policy | CampusBridge',
     description: 'Read the CampusBridge Privacy Policy to understand how we collect, use, and protect your personal data and university credentials.'

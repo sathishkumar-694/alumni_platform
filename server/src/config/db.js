@@ -314,10 +314,18 @@ export const db = {
     create: async (data) => {
       const id = data.id || `m-${Date.now()}`;
       const formattedDueDate = formatMySQLDateTime(data.due_date);
-      await queryMySQL(
-        'INSERT INTO `milestones` (`id`, `mentorship_id`, `title`, `description`, `due_date`, `status`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.mentorship_id, data.title, data.description || '', formattedDueDate, data.status || 'PENDING']
-      );
+      const resourceUrl = data.resource_url || data.resourceUrl || data.file_url || '';
+      try {
+        await queryMySQL(
+          'INSERT INTO `milestones` (`id`, `mentorship_id`, `title`, `description`, `due_date`, `status`, `resource_url`) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [id, data.mentorship_id, data.title, data.description || '', formattedDueDate, data.status || 'PENDING', resourceUrl]
+        );
+      } catch (err) {
+        await queryMySQL(
+          'INSERT INTO `milestones` (`id`, `mentorship_id`, `title`, `description`, `due_date`, `status`) VALUES (?, ?, ?, ?, ?, ?)',
+          [id, data.mentorship_id, data.title, data.description || '', formattedDueDate, data.status || 'PENDING']
+        );
+      }
       const rows = await queryMySQL('SELECT * FROM `milestones` WHERE `id` = ?', [id]);
       return rows[0];
     },
@@ -357,8 +365,8 @@ export const db = {
     create: async (data) => {
       const id = data.id || `anc-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `category`, `target_domain_id`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.author_id, data.title, data.content, data.category || 'GENERAL', data.target_domain_id || null]
+        'INSERT INTO `announcements` (`id`, `author_id`, `title`, `content`, `category`, `target_domain_id`, `file_url`, `file_name`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, data.author_id, data.title, data.content, data.category || 'GENERAL', data.target_domain_id || null, data.file_url || null, data.file_name || null]
       );
       const rows = await queryMySQL('SELECT * FROM `announcements` WHERE `id` = ?', [id]);
       return rows[0];
@@ -375,8 +383,8 @@ export const db = {
     create: async (data) => {
       const id = data.id || `ref-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `job_referrals` (`id`, `alumni_id`, `title`, `company`, `location`, `experience_req`, `skills`, `description`, `status`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [id, data.alumni_id, data.title, data.company, data.location, data.experience_req || '0 - 1 Yr', data.skills || '', data.description || '', data.status || 'OPEN']
+        'INSERT INTO `job_referrals` (`id`, `alumni_id`, `title`, `company`, `location`, `experience_req`, `skills`, `description`, `file_url`, `file_name`, `status`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [id, data.alumni_id, data.title, data.company, data.location, data.experience_req || '0 - 1 Yr', data.skills || '', data.description || '', data.file_url || null, data.file_name || null, data.status || 'OPEN']
       );
       const rows = await queryMySQL('SELECT * FROM `job_referrals` WHERE `id` = ?', [id]);
       return rows[0];
@@ -441,6 +449,69 @@ export const db = {
       );
       const rows = await queryMySQL('SELECT * FROM `audit_logs` WHERE `id` = ?', [id]);
       return rows[0];
+    }
+  },
+
+  resumeAnalyses: {
+    findByUserId: async (userId) => {
+      const rows = await queryMySQL(
+        'SELECT * FROM `resume_analyses` WHERE `user_id` = ? ORDER BY `created_at` DESC',
+        [userId]
+      );
+      return rows.map(r => ({
+        ...r,
+        detected_skills: r.detected_skills ? (typeof r.detected_skills === 'string' ? JSON.parse(r.detected_skills) : r.detected_skills) : [],
+        missing_skills: r.missing_skills ? (typeof r.missing_skills === 'string' ? JSON.parse(r.missing_skills) : r.missing_skills) : [],
+        actionable_advice: r.actionable_advice ? (typeof r.actionable_advice === 'string' ? JSON.parse(r.actionable_advice) : r.actionable_advice) : [],
+        matched_mentors: r.matched_mentors ? (typeof r.matched_mentors === 'string' ? JSON.parse(r.matched_mentors) : r.matched_mentors) : []
+      }));
+    },
+    findById: async (id) => {
+      const rows = await queryMySQL('SELECT * FROM `resume_analyses` WHERE `id` = ?', [id]);
+      if (!rows[0]) return null;
+      const r = rows[0];
+      return {
+        ...r,
+        detected_skills: r.detected_skills ? (typeof r.detected_skills === 'string' ? JSON.parse(r.detected_skills) : r.detected_skills) : [],
+        missing_skills: r.missing_skills ? (typeof r.missing_skills === 'string' ? JSON.parse(r.missing_skills) : r.missing_skills) : [],
+        actionable_advice: r.actionable_advice ? (typeof r.actionable_advice === 'string' ? JSON.parse(r.actionable_advice) : r.actionable_advice) : [],
+        matched_mentors: r.matched_mentors ? (typeof r.matched_mentors === 'string' ? JSON.parse(r.matched_mentors) : r.matched_mentors) : []
+      };
+    },
+    create: async (data) => {
+      const id = data.id || `ra-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      await queryMySQL(
+        'INSERT INTO `resume_analyses` (`id`, `user_id`, `file_name`, `target_role`, `ats_score`, `keyword_match_score`, `impact_score`, `format_score`, `technical_depth_score`, `detected_skills`, `missing_skills`, `actionable_advice`, `matched_mentors`, `backup_url`, `backup_provider`, `ai_provider`, `is_online_model`, `latency_ms`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          id,
+          data.user_id,
+          data.file_name || 'resume.pdf',
+          data.target_role || 'General Role',
+          data.ats_score || 70,
+          data.keyword_match_score || 70,
+          data.impact_score || 65,
+          data.format_score || 85,
+          data.technical_depth_score || 75,
+          JSON.stringify(data.detected_skills || []),
+          JSON.stringify(data.missing_skills || []),
+          JSON.stringify(data.actionable_advice || []),
+          JSON.stringify(data.matched_mentors || []),
+          data.backup_url || '',
+          data.backup_provider || 'Local Disk',
+          data.ai_provider || 'CampusBridge AI Engine',
+          data.is_online_model ? 1 : 0,
+          data.latency_ms || 0
+        ]
+      );
+      return await db.resumeAnalyses.findById(id);
+    },
+    delete: async (id, userId) => {
+      if (userId) {
+        await queryMySQL('DELETE FROM `resume_analyses` WHERE `id` = ? AND `user_id` = ?', [id, userId]);
+      } else {
+        await queryMySQL('DELETE FROM `resume_analyses` WHERE `id` = ?', [id]);
+      }
+      return true;
     }
   }
 };

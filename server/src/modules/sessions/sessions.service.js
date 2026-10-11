@@ -1,5 +1,7 @@
 import { sessionsRepository } from './sessions.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { uploadToCloud } from '../../config/cloudinary.js';
+import { notificationsService } from '../notifications/notifications.service.js';
 
 export class SessionsService {
   async createSession(user, payload) {
@@ -19,14 +21,14 @@ export class SessionsService {
       throw new ApiError(404, 'Active mentorship relationship not found');
     }
 
-    if (user.id !== mentorship.student_id && user.id !== mentorship.mentor_id) {
+    if (user.role !== 'ADMIN' && user.id !== mentorship.student_id && user.id !== mentorship.mentor_id) {
       throw new ApiError(403, 'You are not a participant in this mentorship');
     }
 
     const isStudent = user.id === mentorship.student_id;
     const validProposedSlots = Array.isArray(proposedSlots) ? proposedSlots.filter(Boolean) : [];
 
-    return await sessionsRepository.createSession({
+    const newSession = await sessionsRepository.createSession({
       mentorship_id: mentorshipId,
       scheduled_at: validProposedSlots[0] || scheduledAt || new Date(Date.now() + 86400000).toISOString(),
       proposed_slots: validProposedSlots.length > 0 ? validProposedSlots : [scheduledAt || new Date(Date.now() + 86400000).toISOString()],
@@ -35,6 +37,41 @@ export class SessionsService {
       meeting_link: meetingLink || 'https://meet.google.com/campusbridge-session',
       status: isStudent && validProposedSlots.length > 1 ? 'PENDING_SLOT_SELECTION' : 'SCHEDULED'
     });
+
+    // Notify participants
+    if (isStudent) {
+      await notificationsService.createNotification({
+        user_id: mentorship.mentor_id,
+        type: 'SESSION_SCHEDULED',
+        title: '📅 Mentorship Session Proposed',
+        desc: `${user.name || 'Your mentee'} proposed a session on "${topic}".`,
+        target_tab: 'requests'
+      }).catch(() => {});
+      await notificationsService.createNotification({
+        user_id: user.id,
+        type: 'SESSION_SCHEDULED',
+        title: '📅 Mentorship Session Requested',
+        desc: `Your 1-on-1 session on "${topic}" has been booked.`,
+        target_tab: 'requests'
+      }).catch(() => {});
+    } else {
+      await notificationsService.createNotification({
+        user_id: mentorship.student_id,
+        type: 'SESSION_SCHEDULED',
+        title: '📅 New Mentorship Session Scheduled',
+        desc: `${user.name || 'Your mentor'} scheduled a session: "${topic}". Meeting link is available.`,
+        target_tab: 'requests'
+      }).catch(() => {});
+      await notificationsService.createNotification({
+        user_id: user.id,
+        type: 'SESSION_SCHEDULED',
+        title: '📅 Session Scheduled',
+        desc: `Session "${topic}" has been added to your mentorship agenda.`,
+        target_tab: 'requests'
+      }).catch(() => {});
+    }
+
+    return newSession;
   }
 
   async getSessionsByMentorship(mentorshipId) {
@@ -61,19 +98,45 @@ export class SessionsService {
     return await sessionsRepository.updateSession(sessionId, updates);
   }
 
-  async createMilestone(mentorshipId, { title, description, dueDate }) {
+  async createMilestone(mentorshipId, { title, description, dueDate, resourceUrl }, file) {
     const mentorship = await sessionsRepository.findActiveMentorshipById(mentorshipId);
     if (!mentorship) {
       throw new ApiError(404, 'Active mentorship relationship not found');
     }
 
-    return await sessionsRepository.createMilestone({
+    let finalResourceUrl = resourceUrl || '';
+    if (file) {
+      finalResourceUrl = await uploadToCloud(file.path, 'milestone_materials');
+    }
+
+    const milestone = await sessionsRepository.createMilestone({
       mentorship_id: mentorshipId,
       title,
       description: description || '',
       due_date: dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
-      status: 'PENDING'
+      status: 'PENDING',
+      resource_url: finalResourceUrl
     });
+
+    // Notify student
+    await notificationsService.createNotification({
+      user_id: mentorship.student_id,
+      type: 'MILESTONE_ASSIGNED',
+      title: '🎯 New Milestone Assigned',
+      desc: `Milestone "${title}" has been assigned for your mentorship roadmap.`,
+      target_tab: 'requests'
+    }).catch(() => {});
+
+    // Notify mentor
+    await notificationsService.createNotification({
+      user_id: mentorship.mentor_id,
+      type: 'MILESTONE_CREATED',
+      title: '🎯 Milestone Added',
+      desc: `Milestone "${title}" has been recorded for your mentee.`,
+      target_tab: 'requests'
+    }).catch(() => {});
+
+    return milestone;
   }
 
   async getMilestonesByMentorship(mentorshipId) {
@@ -86,7 +149,30 @@ export class SessionsService {
       throw new ApiError(404, 'Milestone not found');
     }
 
-    return await sessionsRepository.updateMilestone(milestoneId, { status });
+    const updated = await sessionsRepository.updateMilestone(milestoneId, { status });
+
+    if (status === 'COMPLETED') {
+      const mentorship = await sessionsRepository.findActiveMentorshipById(milestone.mentorship_id);
+      if (mentorship) {
+        await notificationsService.createNotification({
+          user_id: mentorship.student_id,
+          type: 'MILESTONE_COMPLETED',
+          title: '🏆 Milestone Completed!',
+          desc: `Milestone "${milestone.title}" has been completed!`,
+          target_tab: 'requests'
+        }).catch(() => {});
+
+        await notificationsService.createNotification({
+          user_id: mentorship.mentor_id,
+          type: 'MILESTONE_COMPLETED',
+          title: '🏆 Mentee Milestone Completed',
+          desc: `Milestone "${milestone.title}" was marked as completed!`,
+          target_tab: 'requests'
+        }).catch(() => {});
+      }
+    }
+
+    return updated;
   }
 }
 

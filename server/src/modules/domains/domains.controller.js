@@ -10,6 +10,14 @@ export const getDomains = asyncHandler(async (req, res) => {
   );
 });
 
+export const getDomainDetails = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+  const result = await domainsService.getDomainDetails(domainId);
+  return res.status(200).json(
+    new ApiResponse(200, result, 'Technical domain details fetched successfully')
+  );
+});
+
 export const toggleStudentInterest = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const result = await domainsService.toggleStudentInterest(req.user.id, domainId);
@@ -48,7 +56,8 @@ export const approveDomainRequest = asyncHandler(async (req, res) => {
 
 export const rejectDomainRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  await domainsService.rejectDomainRequest(req.user, id);
+  const { reason } = req.body || {};
+  await domainsService.rejectDomainRequest(req.user, id, reason);
   return res.status(200).json(
     new ApiResponse(200, null, 'Domain request rejected.')
   );

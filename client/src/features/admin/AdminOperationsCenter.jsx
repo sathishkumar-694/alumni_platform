@@ -22,17 +22,21 @@ import {
   ExternalLink,
   ChevronRight,
   User,
-  Compass
+  Compass,
+  Search
 } from 'lucide-react';
 
 export const AdminOperationsCenter = ({ activeSection }) => {
   const { showNotification } = useNotification();
 
   const getTabForSection = (section) => {
-    if (section === 'active_mentorships') return 'matrix';
-    if (section === 'requests') return 'requests';
+    if (section === 'active_mentorships' || section === 'admin_matrix' || section === 'matrix') return 'matrix';
+    if (section === 'requests' || section === 'admin_requests') return 'requests';
     if (section === 'sessions') return 'sessions';
-    if (section === 'domains') return 'domains';
+    if (section === 'domains' || section === 'admin_domains') return 'domains';
+    if (section === 'verifications' || section === 'admin_verifications') return 'verifications';
+    if (section === 'users' || section === 'admin_users') return 'users';
+    if (section === 'analytics' || section === 'admin_analytics' || section === 'admin_operations' || section === 'dashboard') return 'dashboard';
     return 'dashboard';
   };
 
@@ -79,6 +83,17 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     description: '',
     icon: 'Code'
   });
+
+  // Rejection Reason Modal State ({ type: 'VERIFICATION' | 'DOMAIN', id, title, entityName })
+  const [rejectionModal, setRejectionModal] = useState(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+
+  // Search states for Admin tabs
+  const [verifSearch, setVerifSearch] = useState('');
+  const [matrixSearch, setMatrixSearch] = useState('');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [userSearch, setUserSearch] = useState('');
+  const [domainSearch, setDomainSearch] = useState('');
 
   const fetchDomainRequests = async () => {
     try {
@@ -198,13 +213,15 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     fetchOperationsData();
   }, []);
 
-  const handleVerifyUser = async (userId, action) => {
+  const handleVerifyUser = async (userId, action, reason = '') => {
     try {
       await apiClient(`/verification/users/${userId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, reason })
       });
       showNotification(`Verification status ${action === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`, 'success');
+      setRejectionModal(null);
+      setRejectionReasonText('');
       fetchOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -264,10 +281,15 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     }
   };
 
-  const handleRejectDomainRequest = async (requestId) => {
+  const handleRejectDomainRequest = async (requestId, reason = '') => {
     try {
-      await apiClient(`/domains/requests/${requestId}/reject`, { method: 'PATCH' });
+      await apiClient(`/domains/requests/${requestId}/reject`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason })
+      });
       showNotification('Domain request rejected', 'info');
+      setRejectionModal(null);
+      setRejectionReasonText('');
       fetchOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
@@ -292,80 +314,109 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
   const alumniUsers = allUsers.filter(u => u.role === 'ALUMNI');
 
+  // Filtered lists for admin views
+  const filteredVerifications = pendingVerifications.filter(v => {
+    if (!verifSearch.trim()) return true;
+    const q = verifSearch.toLowerCase().trim();
+    const userName = (v.user?.name || v.name || '').toLowerCase();
+    const userEmail = (v.user?.email || v.email || '').toLowerCase();
+    const userRole = (v.user?.role || v.role || '').toLowerCase();
+    return userName.includes(q) || userEmail.includes(q) || userRole.includes(q);
+  });
+
+  const filteredMatrix = matrix.filter(item => {
+    if (!matrixSearch.trim()) return true;
+    const q = matrixSearch.toLowerCase().trim();
+    return (
+      (item.student_name || '').toLowerCase().includes(q) ||
+      (item.student_email || '').toLowerCase().includes(q) ||
+      (item.mentor_name || '').toLowerCase().includes(q) ||
+      (item.mentor_email || '').toLowerCase().includes(q) ||
+      (item.domain_name || '').toLowerCase().includes(q) ||
+      (item.status || '').toLowerCase().includes(q)
+    );
+  });
+
+  const filteredRequests = pendingRequests.filter(req => {
+    if (!requestSearch.trim()) return true;
+    const q = requestSearch.toLowerCase().trim();
+    return (
+      (req.student_name || '').toLowerCase().includes(q) ||
+      (req.student_email || '').toLowerCase().includes(q) ||
+      (req.mentor_name || '').toLowerCase().includes(q) ||
+      (req.mentor_email || '').toLowerCase().includes(q) ||
+      (req.domain_name || '').toLowerCase().includes(q) ||
+      (req.message || '').toLowerCase().includes(q) ||
+      (req.status || '').toLowerCase().includes(q)
+    );
+  });
+
+  const filteredUsers = allUsers.filter(u => {
+    if (!userSearch.trim()) return true;
+    const q = userSearch.toLowerCase().trim();
+    return (
+      (u.name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.role || '').toLowerCase().includes(q) ||
+      (u.verification_status || '').toLowerCase().includes(q)
+    );
+  });
+
+  const filteredDomains = domains.filter(d => {
+    if (!domainSearch.trim()) return true;
+    const q = domainSearch.toLowerCase().trim();
+    return (
+      (d.name || '').toLowerCase().includes(q) ||
+      (d.category || '').toLowerCase().includes(q) ||
+      (d.description || '').toLowerCase().includes(q)
+    );
+  });
+
+  const filteredDomainRequests = pendingDomainRequests.filter(req => {
+    if (!domainSearch.trim()) return true;
+    const q = domainSearch.toLowerCase().trim();
+    return (
+      (req.name || '').toLowerCase().includes(q) ||
+      (req.description || '').toLowerCase().includes(q) ||
+      (req.category || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div style={{ maxWidth: '1280px', margin: '1.5rem auto', padding: '0 1.5rem' }}>
       
       {/* Header Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', borderBottom: '1px solid var(--border-card)', paddingBottom: '1.25rem' }}>
         <div>
-          <span className="badge badge-purple" style={{ marginBottom: '0.35rem' }}>
-            <ShieldCheck size={12} /> ADMINISTRATION SYSTEM
+          <span className="badge badge-purple" style={{ marginBottom: '0.4rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <ShieldCheck size={12} />
+            {activeTab === 'dashboard' && 'ADMIN CONTROLS • PLATFORM OVERVIEW & ANALYTICS'}
+            {activeTab === 'verifications' && `ADMIN CONTROLS • PENDING ID VERIFICATIONS (${pendingVerifications.length})`}
+            {activeTab === 'matrix' && `ADMIN CONTROLS • ACTIVE PAIRINGS MATRIX (${matrix.length})`}
+            {activeTab === 'requests' && `ADMIN CONTROLS • MENTORSHIP REQUESTS (${pendingRequests.length})`}
+            {activeTab === 'users' && `ADMIN CONTROLS • USER ACCOUNTS (${allUsers.length})`}
+            {activeTab === 'domains' && `ADMIN CONTROLS • TECHNICAL DOMAINS (${domains.length})`}
           </span>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>Admin Operations Center</h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-            User ID verification queues, mentorship pair reassignments, capacity overrides & system metrics.
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)' }}>
+            {activeTab === 'dashboard' && 'Overview & Analytics'}
+            {activeTab === 'verifications' && 'Pending Student & Alumni ID Verifications'}
+            {activeTab === 'matrix' && 'Active Mentorship Pairings Matrix'}
+            {activeTab === 'requests' && 'All Student Mentorship Requests'}
+            {activeTab === 'users' && 'User Accounts & Capacity Overrides'}
+            {activeTab === 'domains' && 'Technical Domain Directory Management'}
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {activeTab === 'dashboard' && 'Live KPI indicators, session completion rates, and platform engagement tracking.'}
+            {activeTab === 'verifications' && 'Review institutional ID cards submitted by students and alumni for official platform approval.'}
+            {activeTab === 'matrix' && 'Manage all active student-mentor pairings and execute mentorship reassignments.'}
+            {activeTab === 'requests' && 'Monitor all student mentorship requests, status tracks, and target mentors.'}
+            {activeTab === 'users' && 'Manage user permissions, password resets, verification overrides, and mentee capacity caps.'}
+            {activeTab === 'domains' && 'Review and approve technical domain proposals submitted by mentors or add new domains.'}
           </p>
         </div>
 
-        <button onClick={fetchOperationsData} className="btn btn-secondary btn-sm">
-          <RefreshCw size={14} /> Refresh Matrix
-        </button>
-      </div>
-
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '2rem' }}>
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <TrendingUp size={15} /> Overview & Analytics
-        </button>
-
-        <button
-          onClick={() => setActiveTab('verifications')}
-          className={`btn ${activeTab === 'verifications' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <UserCheck size={15} /> Pending ID Verifications {pendingVerifications.length > 0 && (
-            <span className="badge badge-rose" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingVerifications.length}</span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('matrix')}
-          className={`btn ${activeTab === 'matrix' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <Users size={15} /> Active Mentorship Pairings
-        </button>
-
-        <button
-          onClick={() => setActiveTab('requests')}
-          className={`btn ${activeTab === 'requests' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <Clock size={15} /> Mentorship Requests {pendingRequests.length > 0 && (
-            <span className="badge badge-amber" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingRequests.length}</span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`btn ${activeTab === 'users' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <User size={15} /> User Accounts & Capacity Overrides
-        </button>
-
-        <button
-          onClick={() => setActiveTab('domains')}
-          className={`btn ${activeTab === 'domains' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ fontSize: '0.85rem' }}
-        >
-          <Compass size={15} /> Technical Domains & Mentor Requests {pendingDomainRequests.length > 0 && (
-            <span className="badge badge-rose" style={{ marginLeft: '0.35rem', padding: '0.15rem 0.4rem' }}>{pendingDomainRequests.length}</span>
-          )}
+        <button onClick={fetchOperationsData} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+          <RefreshCw size={14} /> Refresh Data
         </button>
       </div>
 
@@ -443,17 +494,43 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           {/* TAB 2: PENDING ID VERIFICATIONS */}
           {activeTab === 'verifications' && (
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
-                Pending Student & Alumni ID Verifications ({pendingVerifications.length})
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Pending Student & Alumni ID Verifications ({filteredVerifications.length}{verifSearch ? ` of ${pendingVerifications.length}` : ''})
+                </h3>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search by name, email, role..."
+                    value={verifSearch}
+                    onChange={(e) => setVerifSearch(e.target.value)}
+                    className="form-input"
+                    style={{ paddingLeft: '2.25rem', paddingRight: verifSearch ? '2rem' : '0.75rem', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                  />
+                  {verifSearch && (
+                    <button
+                      onClick={() => setVerifSearch('')}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                      title="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {pendingVerifications.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
                   No pending ID verifications in queue. All user credentials verified!
                 </p>
+              ) : filteredVerifications.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No pending verifications match "{verifSearch}".
+                </p>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.25rem' }}>
-                  {pendingVerifications.map((v) => {
+                  {filteredVerifications.map((v) => {
                     const userName = v.user?.name || v.name || 'User Account';
                     const userEmail = v.user?.email || v.email || 'N/A';
                     const userRole = v.user?.role || v.role || 'USER';
@@ -479,7 +556,19 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                             <button onClick={() => handleVerifyUser(targetUserId, 'APPROVE')} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                               <Check size={14} /> Approve ID
                             </button>
-                            <button onClick={() => handleVerifyUser(targetUserId, 'REJECT')} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                            <button
+                              onClick={() => {
+                                setRejectionReasonText('');
+                                setRejectionModal({
+                                  type: 'VERIFICATION',
+                                  id: targetUserId,
+                                  title: 'ID Verification',
+                                  entityName: userName
+                                });
+                              }}
+                              className="btn btn-danger btn-sm"
+                              style={{ flex: 1 }}
+                            >
                               <X size={14} /> Reject
                             </button>
                           </div>
@@ -495,13 +584,39 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           {/* TAB 3: ACTIVE MENTORSHIP PAIRINGS */}
           {activeTab === 'matrix' && (
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
-                Active Mentorship Pairings Matrix ({matrix.length})
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  Active Mentorship Pairings Matrix ({filteredMatrix.length}{matrixSearch ? ` of ${matrix.length}` : ''})
+                </h3>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search student, mentor, domain, status..."
+                    value={matrixSearch}
+                    onChange={(e) => setMatrixSearch(e.target.value)}
+                    className="form-input"
+                    style={{ paddingLeft: '2.25rem', paddingRight: matrixSearch ? '2rem' : '0.75rem', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                  />
+                  {matrixSearch && (
+                    <button
+                      onClick={() => setMatrixSearch('')}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                      title="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {matrix.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
                   No active mentorship pairings recorded.
+                </p>
+              ) : filteredMatrix.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No mentorship pairings match "{matrixSearch}".
                 </p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -516,7 +631,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {matrix.map((item) => (
+                      {filteredMatrix.map((item) => (
                         <tr key={item.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
                           <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
                             {item.student_name}
@@ -549,13 +664,39 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           {/* TAB 4: MENTORSHIP REQUESTS */}
           {activeTab === 'requests' && (
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
-                All Student Mentorship Requests ({pendingRequests.length})
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  All Student Mentorship Requests ({filteredRequests.length}{requestSearch ? ` of ${pendingRequests.length}` : ''})
+                </h3>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search applicant, mentor, domain, status..."
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                    className="form-input"
+                    style={{ paddingLeft: '2.25rem', paddingRight: requestSearch ? '2rem' : '0.75rem', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                  />
+                  {requestSearch && (
+                    <button
+                      onClick={() => setRequestSearch('')}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                      title="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
 
               {pendingRequests.length === 0 ? (
                 <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
                   No mentorship requests found.
+                </p>
+              ) : filteredRequests.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No mentorship requests match "{requestSearch}".
                 </p>
               ) : (
                 <div style={{ overflowX: 'auto' }}>
@@ -570,7 +711,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingRequests.map((req) => (
+                      {filteredRequests.map((req) => (
                         <tr key={req.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
                           <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>
                             {req.student_name}
@@ -601,45 +742,77 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           {/* TAB 5: USER ACCOUNTS & CAPACITY OVERRIDES */}
           {activeTab === 'users' && (
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
-                User Accounts & Capacity Overrides ({allUsers.length})
-              </h3>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '0.75rem' }}>User Name</th>
-                      <th style={{ padding: '0.75rem' }}>Email</th>
-                      <th style={{ padding: '0.75rem' }}>Role</th>
-                      <th style={{ padding: '0.75rem' }}>Verification</th>
-                      <th style={{ padding: '0.75rem' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allUsers.map((u) => (
-                      <tr key={u.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
-                        <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{u.name}</td>
-                        <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</td>
-                        <td style={{ padding: '0.75rem' }}><span className="badge badge-purple">{u.role}</span></td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span className={`badge ${u.verification_status === 'VERIFIED' ? 'badge-emerald' : 'badge-amber'}`}>
-                            {u.verification_status || 'VERIFIED'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                          <button onClick={() => setSelectedUserForDetails(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                            <FileText size={13} /> View Details
-                          </button>
-                          <button onClick={() => setEditUser(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                            <Edit size={13} /> Edit Account
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                  User Accounts & Capacity Overrides ({filteredUsers.length}{userSearch ? ` of ${allUsers.length}` : ''})
+                </h3>
+                <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search name, email, role, verification..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="form-input"
+                    style={{ paddingLeft: '2.25rem', paddingRight: userSearch ? '2rem' : '0.75rem', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                  />
+                  {userSearch && (
+                    <button
+                      onClick={() => setUserSearch('')}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                      title="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {allUsers.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No users registered.
+                </p>
+              ) : filteredUsers.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                  No user accounts match "{userSearch}".
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-card)', color: 'var(--text-subtle)', fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '0.75rem' }}>User Name</th>
+                        <th style={{ padding: '0.75rem' }}>Email</th>
+                        <th style={{ padding: '0.75rem' }}>Role</th>
+                        <th style={{ padding: '0.75rem' }}>Verification</th>
+                        <th style={{ padding: '0.75rem' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUsers.map((u) => (
+                        <tr key={u.id} style={{ borderBottom: '1px solid var(--border-card)' }}>
+                          <td style={{ padding: '0.75rem', fontWeight: 600, color: 'var(--text-main)' }}>{u.name}</td>
+                          <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{u.email}</td>
+                          <td style={{ padding: '0.75rem' }}><span className="badge badge-purple">{u.role}</span></td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span className={`badge ${u.verification_status === 'VERIFIED' ? 'badge-emerald' : 'badge-amber'}`}>
+                              {u.verification_status || 'VERIFIED'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                            <button onClick={() => setSelectedUserForDetails(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+                              <FileText size={13} /> View Details
+                            </button>
+                            <button onClick={() => setEditUser(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
+                              <Edit size={13} /> Edit Account
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -654,9 +827,11 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
                 {pendingDomainRequests.length === 0 ? (
                   <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending domain addition requests.</p>
+                ) : filteredDomainRequests.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending domain requests match "{domainSearch}".</p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
-                    {pendingDomainRequests.map((req) => (
+                    {filteredDomainRequests.map((req) => (
                       <div key={req.id} style={{ background: 'var(--bg-subtle)', padding: '1.25rem', borderRadius: '14px', border: '1px solid var(--border-card)' }}>
                         <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{req.name}</h4>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{req.description || 'No description provided'}</p>
@@ -664,7 +839,19 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                           <button onClick={() => handleApproveDomainRequest(req.id)} className="btn btn-primary btn-sm" style={{ flex: 1 }}>
                             <Check size={14} /> Approve Domain
                           </button>
-                          <button onClick={() => handleRejectDomainRequest(req.id)} className="btn btn-danger btn-sm" style={{ flex: 1 }}>
+                          <button
+                            onClick={() => {
+                              setRejectionReasonText('');
+                              setRejectionModal({
+                                type: 'DOMAIN',
+                                id: req.id,
+                                title: 'Domain Addition Proposal',
+                                entityName: req.name
+                              });
+                            }}
+                            className="btn btn-danger btn-sm"
+                            style={{ flex: 1 }}
+                          >
                             <X size={14} /> Reject
                           </button>
                         </div>
@@ -676,24 +863,52 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
               {/* Technical Domain Directory List */}
               <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                    Technical Domain Directory Management ({domains.length})
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                    Technical Domain Directory Management ({filteredDomains.length}{domainSearch ? ` of ${domains.length}` : ''})
                   </h3>
-                  <button onClick={() => setShowDomainModal(true)} className="btn btn-primary btn-sm">
-                    <Plus size={14} /> Add Domain
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', width: '260px' }}>
+                      <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                      <input
+                        type="text"
+                        placeholder="Search domain or category..."
+                        value={domainSearch}
+                        onChange={(e) => setDomainSearch(e.target.value)}
+                        className="form-input"
+                        style={{ paddingLeft: '2.25rem', paddingRight: domainSearch ? '2rem' : '0.75rem', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                      />
+                      {domainSearch && (
+                        <button
+                          onClick={() => setDomainSearch('')}
+                          style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                          title="Clear search"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                    <button onClick={() => setShowDomainModal(true)} className="btn btn-primary btn-sm">
+                      <Plus size={14} /> Add Domain
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
-                  {domains.map((d) => (
-                    <div key={d.id} style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{d.name}</h4>
-                      <span className="badge badge-purple" style={{ fontSize: '0.65rem', marginTop: '0.25rem' }}>{d.category || 'Core Engineering'}</span>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{d.description}</p>
-                    </div>
-                  ))}
-                </div>
+                {filteredDomains.length === 0 ? (
+                  <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+                    {domainSearch ? `No technical domains match "${domainSearch}".` : 'No technical domains registered.'}
+                  </p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                    {filteredDomains.map((d) => (
+                      <div key={d.id} style={{ background: 'var(--bg-subtle)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-card)' }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>{d.name}</h4>
+                        <span className="badge badge-purple" style={{ fontSize: '0.65rem', marginTop: '0.25rem' }}>{d.category || 'Core Engineering'}</span>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{d.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1018,6 +1233,60 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                 <button type="submit" className="btn btn-primary">Create Domain</button>
               </div>
             </form>
+          </div>
+        </div>)}
+      {/* Universal Rejection Reason Modal */}
+      {rejectionModal && (
+        <div className="modal-overlay" onClick={() => setRejectionModal(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '1.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                Reject {rejectionModal.title}
+              </h3>
+              <button
+                onClick={() => setRejectionModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+              Specify the rejection reason for <strong>{rejectionModal.entityName}</strong>. This feedback is officially recorded and forwarded to the applicant.
+            </p>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+                Rejection Reason (Feedback for Applicant):
+              </label>
+              <textarea
+                rows={4}
+                className="form-input"
+                placeholder="e.g., ID card image is blurred, registration number mismatch, or curriculum overlap with existing domains..."
+                value={rejectionReasonText}
+                onChange={(e) => setRejectionReasonText(e.target.value)}
+                style={{ width: '100%', resize: 'vertical', fontSize: '0.85rem' }}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button onClick={() => setRejectionModal(null)} className="btn btn-secondary btn-sm">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (rejectionModal.type === 'VERIFICATION') {
+                    handleVerifyUser(rejectionModal.id, 'REJECT', rejectionReasonText);
+                  } else if (rejectionModal.type === 'DOMAIN') {
+                    handleRejectDomainRequest(rejectionModal.id, rejectionReasonText);
+                  }
+                }}
+                className="btn btn-danger btn-sm"
+              >
+                Confirm Rejection
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { mentorshipRepository } from './mentorship.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { notificationsService } from '../notifications/notifications.service.js';
 
 export class MentorshipService {
   async createRequest(user, payload) {
@@ -28,24 +29,49 @@ export class MentorshipService {
     const isFull = currentCapacity >= maxCapacity;
     const status = isFull ? 'WAITLISTED' : 'PENDING';
 
-    return await mentorshipRepository.createMentorshipRequest({
+    const newReq = await mentorshipRepository.createMentorshipRequest({
       student_id: user.id,
       mentor_id: mentorId,
       domain_id: domainId || 'd-1',
       status,
       message: message || (isFull ? 'Please add me to your mentorship waitlist.' : 'I would like to request career mentorship from you.')
     });
+
+    const domain = await mentorshipRepository.findDomainById(domainId || 'd-1');
+
+    // Notify mentor
+    await notificationsService.createNotification({
+      user_id: mentorId,
+      type: 'MENTORSHIP_REQUEST',
+      title: 'New Mentorship Request',
+      desc: `${user.name || 'A student'} requested mentorship from you in ${domain?.name || 'Technical Domain'}.`,
+      target_tab: 'requests'
+    }).catch(() => {});
+
+    // Notify student
+    await notificationsService.createNotification({
+      user_id: user.id,
+      type: 'REQUEST_SUBMITTED',
+      title: 'Mentorship Request Submitted',
+      desc: `Your mentorship request to ${mentor.name} has been submitted (${status === 'WAITLISTED' ? 'Waitlisted' : 'Pending Review'}).`,
+      target_tab: 'requests'
+    }).catch(() => {});
+
+    return newReq;
   }
 
-  async respondToRequest(user, requestId, action) {
+  async respondToRequest(user, requestId, action, reason = '') {
     const request = await mentorshipRepository.findRequestById(requestId);
     if (!request) {
       throw new ApiError(404, 'Mentorship request not found');
     }
 
-    if (String(request.mentor_id) !== String(user.id)) {
+    if (user.role !== 'ADMIN' && String(request.mentor_id) !== String(user.id)) {
       throw new ApiError(403, 'You are not authorized to respond to this request');
     }
+
+    const studentUser = await mentorshipRepository.findUserById(request.student_id);
+    const mentorUser = await mentorshipRepository.findUserById(request.mentor_id);
 
     if (action === 'ACCEPT') {
       const allActive = await mentorshipRepository.findAllActiveMentorships();
@@ -56,6 +82,24 @@ export class MentorshipService {
       );
 
       await mentorshipRepository.updateRequest(requestId, { status: 'ACCEPTED' });
+
+      // Notify student
+      await notificationsService.createNotification({
+        user_id: request.student_id,
+        type: 'MENTORSHIP_ACCEPTED',
+        title: '🎉 Mentorship Request Accepted!',
+        desc: `${mentorUser?.name || 'Your mentor'} accepted your mentorship request! You are now paired.`,
+        target_tab: 'requests'
+      }).catch(() => {});
+
+      // Notify mentor
+      await notificationsService.createNotification({
+        user_id: request.mentor_id,
+        type: 'MENTORSHIP_ACTIVE',
+        title: 'Mentorship Active',
+        desc: `You accepted mentorship with ${studentUser?.name || 'student'}. You can now schedule sessions and milestones.`,
+        target_tab: 'requests'
+      }).catch(() => {});
 
       if (existingActive) {
         return existingActive;
@@ -77,6 +121,17 @@ export class MentorshipService {
       return activeMentorship;
     } else if (action === 'REJECT') {
       await mentorshipRepository.updateRequest(requestId, { status: 'REJECTED' });
+
+      if (request.student_id) {
+        await notificationsService.createNotification({
+          user_id: request.student_id,
+          type: 'REQUEST_DECLINED',
+          title: 'Mentorship Request Declined',
+          desc: reason ? `Your mentorship request to ${mentorUser?.name || 'mentor'} was declined. Reason: ${reason}` : `Your mentorship request to ${mentorUser?.name || 'mentor'} was declined.`,
+          target_tab: 'requests'
+        }).catch(() => {});
+      }
+
       return null;
     } else {
       throw new ApiError(400, "Invalid action. Must be 'ACCEPT' or 'REJECT'");
@@ -101,6 +156,23 @@ export class MentorshipService {
         current_capacity: Math.max(0, (profile.current_capacity || 1) - 1)
       });
     }
+
+    // Notify student and mentor
+    await notificationsService.createNotification({
+      user_id: mentorship.student_id,
+      type: 'MENTORSHIP_COMPLETED',
+      title: '🎓 Mentorship Journey Completed!',
+      desc: 'Your mentorship cycle has been officially marked completed. Great job!',
+      target_tab: 'requests'
+    }).catch(() => {});
+
+    await notificationsService.createNotification({
+      user_id: mentorship.mentor_id,
+      type: 'MENTORSHIP_COMPLETED',
+      title: '🎓 Mentorship Completed',
+      desc: 'Mentorship pairing has concluded successfully.',
+      target_tab: 'requests'
+    }).catch(() => {});
 
     return updated;
   }

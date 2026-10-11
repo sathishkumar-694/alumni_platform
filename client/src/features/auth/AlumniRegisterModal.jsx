@@ -125,7 +125,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Full Name</label>
+              <label className="form-label">Full Name <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -137,7 +137,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Work / Professional Email</label>
+              <label className="form-label">Work / Professional Email <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="email"
                 className="form-input"
@@ -151,7 +151,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Current Company / Org</label>
+              <label className="form-label">Current Company / Org <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -163,7 +163,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Designation / Role</label>
+              <label className="form-label">Designation / Role <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="text"
                 className="form-input"
@@ -177,7 +177,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
             <div className="form-group">
-              <label className="form-label">Experience (Yrs)</label>
+              <label className="form-label">Experience (Yrs) <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="number"
                 className="form-input"
@@ -188,7 +188,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Grad Year</label>
+              <label className="form-label">Grad Year <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="number"
                 className="form-input"
@@ -199,7 +199,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Mentee Capacity</label>
+              <label className="form-label">Mentee Capacity <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
               <input
                 type="number"
                 className="form-input"
@@ -222,7 +222,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Password</label>
+            <label className="form-label">Password <span style={{ color: '#ef4444', fontWeight: 700 }}>*</span></label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPassword ? 'text' : 'password'}

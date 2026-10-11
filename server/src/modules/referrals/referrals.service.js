@@ -1,5 +1,7 @@
 import { referralsRepository } from './referrals.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { uploadToCloud } from '../../config/cloudinary.js';
+import { notificationsService } from '../notifications/notifications.service.js';
 
 export class ReferralsService {
   async getAllJobs() {
@@ -18,12 +20,14 @@ export class ReferralsService {
         skills: Array.isArray(j.skills) ? j.skills : [],
         referralOpen: j.status === 'OPEN',
         description: j.description,
+        file_url: j.file_url || null,
+        file_name: j.file_name || null,
         created_at: j.created_at
       };
     }));
   }
 
-  async createJob(user, { title, company, location, experienceReq, skills, description }) {
+  async createJob(user, { title, company, location, experienceReq, skills, description }, file = null) {
     if (user.role !== 'ALUMNI' && user.role !== 'ADMIN') {
       throw new ApiError(403, 'Only verified alumni mentors or administrators can post internal job referrals');
     }
@@ -32,7 +36,14 @@ export class ReferralsService {
       ? skills.split(',').map(s => s.trim()).filter(Boolean)
       : Array.isArray(skills) ? skills : [];
 
-    return await referralsRepository.createJob({
+    let fileUrl = null;
+    let fileName = null;
+    if (file) {
+      fileUrl = await uploadToCloud(file.path, 'job_descriptions');
+      fileName = file.originalname || 'job_description.pdf';
+    }
+
+    const newJob = await referralsRepository.createJob({
       alumni_id: user.id,
       title,
       company,
@@ -40,8 +51,21 @@ export class ReferralsService {
       experience_req: experienceReq || '0 - 1 Yr',
       skills: skillsArray,
       description,
+      file_url: fileUrl,
+      file_name: fileName,
       status: 'OPEN'
     });
+
+    // Notify job creator
+    await notificationsService.createNotification({
+      user_id: user.id,
+      type: 'JOB_POSTED',
+      title: '💼 Job Referral Published',
+      desc: `Your job posting "${title}" at ${company} is now live on the student referral board.`,
+      target_tab: 'referrals'
+    }).catch(() => {});
+
+    return newJob;
   }
 
   async applyForReferral(studentUser, jobId) {
@@ -55,11 +79,35 @@ export class ReferralsService {
       throw new ApiError(400, 'You have already submitted an internal referral application for this job');
     }
 
-    return await referralsRepository.createApplication({
+    const newApp = await referralsRepository.createApplication({
       job_id: jobId,
       student_id: studentUser.id,
       status: 'PENDING'
     });
+
+    const job = await referralsRepository.findJobById(jobId);
+
+    // Notify student
+    await notificationsService.createNotification({
+      user_id: studentUser.id,
+      type: 'APPLICATION_SUBMITTED',
+      title: '💼 Application Submitted',
+      desc: `Your referral application for "${job?.title || 'Job'}" at ${job?.company || 'Company'} was submitted.`,
+      target_tab: 'referrals'
+    }).catch(() => {});
+
+    // Notify alumni job poster
+    if (job?.alumni_id) {
+      await notificationsService.createNotification({
+        user_id: job.alumni_id,
+        type: 'REFERRAL_APPLICATION',
+        title: '💼 New Referral Application',
+        desc: `${studentUser.name || 'A student'} applied for your referral posting: "${job.title}".`,
+        target_tab: 'referrals'
+      }).catch(() => {});
+    }
+
+    return newApp;
   }
 
   async getMyApplications(studentUser) {

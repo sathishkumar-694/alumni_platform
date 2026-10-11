@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../../shared/services/api';
+import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { CheckCircle2, Clock, Plus, Target } from 'lucide-react';
+import { CheckCircle2, Clock, Plus, Target, Paperclip, Upload, X, FileText, Download, ExternalLink } from 'lucide-react';
 
 export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const { showNotification } = useNotification();
@@ -11,6 +11,8 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [resourceFile, setResourceFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchMilestones = async () => {
     try {
@@ -29,23 +31,45 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
 
   const handleAddMilestone = async (e) => {
     e.preventDefault();
+    if (!title.trim()) return;
+
+    setSubmitting(true);
     try {
-      await apiClient('/sessions/milestones', {
-        method: 'POST',
-        body: JSON.stringify({
-          mentorshipId,
-          title,
-          description,
-          dueDate
-        })
-      });
-      showNotification('Milestone added to learning roadmap', 'success');
+      if (resourceFile) {
+        const formData = new FormData();
+        formData.append('mentorshipId', mentorshipId);
+        formData.append('title', title.trim());
+        formData.append('description', description.trim());
+        if (dueDate) formData.append('dueDate', dueDate);
+        formData.append('resourceFile', resourceFile);
+
+        await apiClient('/sessions/milestones', {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        await apiClient('/sessions/milestones', {
+          method: 'POST',
+          body: JSON.stringify({
+            mentorshipId,
+            title: title.trim(),
+            description: description.trim(),
+            dueDate
+          })
+        });
+      }
+
+      showNotification('Milestone with study/resource material added to roadmap!', 'success');
       setTitle('');
       setDescription('');
+      setDueDate('');
+      setResourceFile(null);
       setShowAddForm(false);
       fetchMilestones();
     } catch (err) {
       showNotification(err.message, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -79,31 +103,69 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleAddMilestone} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', marginBottom: '1.25rem', border: '1px solid #cbd5e1' }}>
-          <div className="form-group">
-            <label className="form-label">Milestone Title</label>
+        <form onSubmit={handleAddMilestone} style={{ background: '#f8fafc', padding: '1.2rem', borderRadius: '12px', marginBottom: '1.25rem', border: '1px solid #cbd5e1' }}>
+          <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8rem' }}>Milestone Title *</label>
             <input
               type="text"
               className="form-input"
-              placeholder="e.g. Build a Microservice with Rate Limiting"
+              placeholder="e.g. System Architecture Design & Rate Limiter Implementation"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">Description / Instructions</label>
-            <input
-              type="text"
+
+          <div className="form-group" style={{ marginBottom: '0.85rem' }}>
+            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8rem' }}>Description / Guidelines</label>
+            <textarea
               className="form-input"
-              placeholder="Key deliverables & guidelines..."
+              rows={2}
+              placeholder="Deliverables, reference criteria, and implementation guidelines..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+
+          {/* Resource Material File Upload */}
+          <div className="form-group" style={{ marginBottom: '1.1rem' }}>
+            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-main)' }}>
+              <Paperclip size={14} color="var(--primary)" /> Attach Resource Material / Problem Set (Optional)
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#ffffff', padding: '0.6rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+              <input
+                type="file"
+                id="milestoneResourceFileInput"
+                style={{ display: 'none' }}
+                onChange={(e) => setResourceFile(e.target.files[0] || null)}
+                accept=".pdf,.doc,.docx,.txt,.zip,.png,.jpg,.jpeg"
+              />
+              <label htmlFor="milestoneResourceFileInput" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0, fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Upload size={13} /> {resourceFile ? 'Change File' : 'Upload Resource File'}
+              </label>
+              <span style={{ fontSize: '0.8rem', color: resourceFile ? 'var(--primary)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                {resourceFile ? `📎 ${resourceFile.name} (${Math.round(resourceFile.size / 1024)} KB)` : 'Supports PDF, Docx, Text, Zip, or Image'}
+              </span>
+              {resourceFile && (
+                <button
+                  type="button"
+                  onClick={() => setResourceFile(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+                  title="Remove file"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary btn-sm">Cancel</button>
-            <button type="submit" className="btn btn-primary btn-sm">Save Milestone</button>
+            <button type="button" onClick={() => { setShowAddForm(false); setResourceFile(null); }} className="btn btn-secondary btn-sm" disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
+              {submitting ? 'Saving Milestone...' : 'Save Milestone'}
+            </button>
           </div>
         </form>
       )}
@@ -114,47 +176,85 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No milestones set yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {milestones.map(m => (
-            <div
-              key={m.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.85rem 1rem',
-                borderRadius: '8px',
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 1px 2px rgba(15,23,42,0.03)'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <button
-                  type="button"
-                  onClick={() => handleToggleStatus(m.id, m.status)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  {m.status === 'COMPLETED' ? (
-                    <CheckCircle2 size={20} color="var(--accent-emerald)" />
-                  ) : (
-                    <Clock size={20} color="var(--text-subtle)" />
-                  )}
-                </button>
-                <div>
-                  <p style={{ fontSize: '0.9rem', fontWeight: 600, color: m.status === 'COMPLETED' ? 'var(--text-subtle)' : '#0f172a', textDecoration: m.status === 'COMPLETED' ? 'line-through' : 'none' }}>
-                    {m.title}
-                  </p>
-                  {m.description && <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{m.description}</p>}
-                </div>
-              </div>
+          {milestones.map(m => {
+            const hasResource = Boolean(m.resource_url || m.resourceUrl || m.file_url);
+            const resourcePath = m.resource_url || m.resourceUrl || m.file_url;
+            const fullResourceUrl = hasResource ? getAssetUrl(resourcePath) : null;
 
-              <span className={`badge ${m.status === 'COMPLETED' ? 'badge-emerald' : m.status === 'IN_PROGRESS' ? 'badge-cyan' : 'badge-amber'}`}>
-                {m.status}
-              </span>
-            </div>
-          ))}
+            return (
+              <div
+                key={m.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.9rem 1.1rem',
+                  borderRadius: '10px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 2px rgba(15,23,42,0.03)',
+                  gap: '1rem'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1 }}>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(m.id, m.status)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', marginTop: '0.15rem' }}
+                    title={m.status === 'COMPLETED' ? 'Mark incomplete' : 'Mark completed'}
+                  >
+                    {m.status === 'COMPLETED' ? (
+                      <CheckCircle2 size={20} color="var(--accent-emerald)" />
+                    ) : (
+                      <Clock size={20} color="var(--text-subtle)" />
+                    )}
+                  </button>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: '0.925rem', fontWeight: 600, color: m.status === 'COMPLETED' ? 'var(--text-subtle)' : '#0f172a', textDecoration: m.status === 'COMPLETED' ? 'line-through' : 'none', margin: 0 }}>
+                      {m.title}
+                    </p>
+                    {m.description && (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
+                        {m.description}
+                      </p>
+                    )}
+
+                    {/* Attached Resource Material Link */}
+                    {fullResourceUrl && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <a
+                          href={fullResourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.75rem',
+                            padding: '0.25rem 0.65rem',
+                            textDecoration: 'none',
+                            color: 'var(--primary)',
+                            borderColor: 'var(--primary)',
+                            borderRadius: '6px'
+                          }}
+                        >
+                          <FileText size={12} /> View / Download Resource Material
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <span className={`badge ${m.status === 'COMPLETED' ? 'badge-emerald' : m.status === 'IN_PROGRESS' ? 'badge-cyan' : 'badge-amber'}`} style={{ whiteSpace: 'nowrap' }}>
+                  {m.status}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
   );
 };
+
