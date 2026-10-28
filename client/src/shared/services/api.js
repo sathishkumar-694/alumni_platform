@@ -162,6 +162,19 @@ export const apiClient = async (endpoint, options = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
+    // Auto-logout ONLY when a protected (non-auth) endpoint returns 401
+    // This handles expired/invalid tokens gracefully without breaking login
+    const isAuthEndpoint = rawEndpoint.startsWith('/auth/');
+    if (response.status === 401 && !isAuthEndpoint) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('campusbridge_token');
+        localStorage.removeItem('campusbridge_user');
+        localStorage.removeItem('campusbridge_active_tab');
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('campusbridge:session_expired'));
+      }
+    }
     throw new Error(data.message || 'An error occurred while communicating with the server');
   }
 

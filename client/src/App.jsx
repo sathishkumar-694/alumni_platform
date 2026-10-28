@@ -52,7 +52,7 @@ const knownTabs = [
 ];
 
 const MainContent = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [activeTab, setActiveTabState] = useState(getInitialTab);
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -60,6 +60,17 @@ const MainContent = () => {
   const [isRegisterAlumniOpen, setIsRegisterAlumniOpen] = useState(false);
   const [selectedMentorForRequest, setSelectedMentorForRequest] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Auto-open login modal when session expires (token rejected by server)
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      logout?.();
+      setActiveTabState('home');
+      setIsLoginOpen(true);
+    };
+    window.addEventListener('campusbridge:session_expired', handleSessionExpired);
+    return () => window.removeEventListener('campusbridge:session_expired', handleSessionExpired);
+  }, [logout]);
 
   // Dynamic Document Title & Meta Descriptions per tab (Items 2 & 3)
   useDocumentMeta(activeTab);

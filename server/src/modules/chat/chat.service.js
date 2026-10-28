@@ -60,8 +60,8 @@ export const chatService = {
        JOIN users u_student ON u_student.id = am.student_id
        JOIN users u_mentor  ON u_mentor.id  = am.mentor_id
        LEFT JOIN domains d  ON d.id         = am.domain_id
-       WHERE am.student_id = ? OR am.mentor_id = ?
-       ORDER BY am.started_at DESC`,
+       WHERE (am.student_id = ? OR am.mentor_id = ?)
+       ORDER BY am.id DESC`,
       [user.id, user.id]
     );
 
