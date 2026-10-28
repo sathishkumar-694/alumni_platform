@@ -268,8 +268,25 @@ export const db = {
       );
       const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
       return rows[0];
+    },
+    update: async (id, updates) => {
+      if (!updates || Object.keys(updates).length === 0) {
+        const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
+        return rows[0] || null;
+      }
+      const fields = [];
+      const values = [];
+      Object.keys(updates).forEach(key => {
+        fields.push(`\`${key}\` = ?`);
+        values.push(updates[key]);
+      });
+      values.push(id);
+      await queryMySQL(`UPDATE \`active_mentorships\` SET ${fields.join(', ')} WHERE \`id\` = ?`, values);
+      const rows = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [id]);
+      return rows[0] || null;
     }
   },
+
 
   sessions: {
     find: async () => {

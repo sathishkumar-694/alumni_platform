@@ -26,7 +26,7 @@ import chatRoutes from './src/modules/chat/chat.routes.js';
 import { ensureChatSchema } from './src/modules/chat/chat.service.js';
 import presenceRoutes, { ensureOnlineStatusSchema } from './src/modules/presence/presence.routes.js';
 import reassignRequestsRoutes, { ensureReassignRequestsSchema } from './src/modules/mentorship/reassign.requests.routes.js';
-import reassignRoutes, { ensureReassignSchema } from './src/modules/mentorship/reassign.controller.js';
+import reassignRoutes from './src/modules/mentorship/reassign.routes.js';
 
 const app = express();
 
@@ -129,6 +129,7 @@ app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/presence', presenceRoutes);
 app.use('/api/v1/mentorship', reassignRequestsRoutes);
+app.use('/api/v1', reassignRoutes);
 
 // Route Aliases for backward compatibility
 app.use('/auth', authRoutes);
@@ -146,6 +147,7 @@ app.use('/analytics', analyticsRoutes);
 app.use('/audit', auditRoutes);
 app.use('/chat', chatRoutes);
 app.use('/presence', presenceRoutes);
+app.use('/', reassignRoutes);
 
 // Serve production built client static assets if available
 const candidateDistPaths = [
