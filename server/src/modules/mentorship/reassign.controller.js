@@ -120,11 +120,11 @@ export const getReassignRequests = asyncHandler(async (req, res) => {
 
 /**
  * POST /api/v1/mentorship/reassign-requests/:requestId/review
- * Admin approves (with newMentorId) or rejects the request.
+ * Admin approves the request by ending the existing connection, or rejects it.
  */
 export const adminReviewReassignRequest = asyncHandler(async (req, res) => {
   const { requestId } = req.params;
-  const { action, newMentorId, adminNote } = req.body; // action: 'APPROVE' | 'REJECT'
+  const { action, adminNote } = req.body; // action: 'APPROVE' | 'REJECT'
 
   const rows = await queryMySQL('SELECT * FROM `reassign_requests` WHERE `id` = ?', [requestId]);
   const rr = rows[0];
@@ -132,15 +132,13 @@ export const adminReviewReassignRequest = asyncHandler(async (req, res) => {
   if (rr.status !== 'PENDING') throw new ApiError(400, 'Request already reviewed');
 
   if (action === 'APPROVE') {
-    if (!newMentorId) throw new ApiError(400, 'newMentorId is required to approve');
-
-    const newMentor = await mentorshipRepository.findUserById(newMentorId);
-    if (!newMentor || newMentor.role !== 'ALUMNI' || newMentor.verification_status !== 'VERIFIED') {
-      throw new ApiError(400, 'Invalid or unverified target mentor');
-    }
-
-    // Mark old mentorship REASSIGNED
-    await queryMySQL('UPDATE `active_mentorships` SET `status` = ? WHERE `id` = ?', ['REASSIGNED', rr.mentorship_id]);
+    // Approving a change request ends the current connection. It does not
+    // create a replacement mentorship; the student can request a new mentor later.
+    const ended = await queryMySQL(
+      'UPDATE `active_mentorships` SET `status` = ? WHERE `id` = ? AND `student_id` = ? AND `mentor_id` = ? AND `status` = ?',
+      ['REASSIGNED', rr.mentorship_id, rr.student_id, rr.old_mentor_id, 'ACTIVE']
+    );
+    if (!ended.affectedRows) throw new ApiError(409, 'The active mentorship has already changed or ended');
 
     // Reduce old mentor capacity
     const oldProfile = await mentorshipRepository.getAlumniProfile(rr.old_mentor_id);
@@ -150,37 +148,20 @@ export const adminReviewReassignRequest = asyncHandler(async (req, res) => {
       });
     }
 
-    // Get original mentorship domain
-    const [orig] = await queryMySQL('SELECT * FROM `active_mentorships` WHERE `id` = ?', [rr.mentorship_id]);
-    const newId = `am-${Date.now()}`;
-    await queryMySQL(
-      'INSERT INTO `active_mentorships` (`id`, `student_id`, `mentor_id`, `domain_id`, `status`) VALUES (?, ?, ?, ?, ?)',
-      [newId, rr.student_id, newMentorId, orig?.domain_id || 'd-1', 'ACTIVE']
-    );
-
-    // Increase new mentor capacity
-    const newProfile = await mentorshipRepository.getAlumniProfile(newMentorId);
-    if (newProfile) {
-      await mentorshipRepository.updateAlumniProfile(newMentorId, {
-        current_capacity: (newProfile.current_capacity || 0) + 1
-      });
-    }
-
     // Notify student
     await notificationsService.createNotification({
       user_id: rr.student_id,
       type: 'REASSIGN_APPROVED',
       title: '✅ Mentor Change Approved',
-      desc: `Your mentor has been changed to ${newMentor.name}. Check your Active Mentorships.`,
+      desc: 'Your mentor change request was approved. Your connection with your current mentor has ended. You can request a new mentor when you are ready.',
       target_tab: 'active_mentorships'
     }).catch(() => {});
 
-    // Notify new mentor
     await notificationsService.createNotification({
-      user_id: newMentorId,
-      type: 'MENTORSHIP_ACTIVE',
-      title: 'New Student Assigned',
-      desc: `A student has been assigned to you by admin via mentor change request.`,
+      user_id: rr.old_mentor_id,
+      type: 'MENTORSHIP_ENDED',
+      title: 'Mentorship Connection Ended',
+      desc: 'The student’s request to end this mentorship connection was approved.',
       target_tab: 'active_mentorships'
     }).catch(() => {});
 
@@ -189,7 +170,7 @@ export const adminReviewReassignRequest = asyncHandler(async (req, res) => {
       ['APPROVED', adminNote || '', requestId]
     );
 
-    return res.status(200).json(new ApiResponse(200, null, 'Mentor change approved and student reassigned'));
+    return res.status(200).json(new ApiResponse(200, null, 'Mentor change request approved; current connection ended'));
 
   } else if (action === 'REJECT') {
     await queryMySQL(

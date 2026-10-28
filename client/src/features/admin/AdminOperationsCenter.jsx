@@ -49,9 +49,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [pendingDomainRequests, setPendingDomainRequests] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [reassignRequestsList, setReassignRequestsList] = useState([]);
-  const [, setReassignReviewModal] = useState(null);
-  const [, setReassignNewMentor] = useState('');
-  const [, setReassignAdminNote] = useState('');
+  const [reviewingReassignId, setReviewingReassignId] = useState(null);
 
   // Modals & Drawers
   const [editUser, setEditUser] = useState(null);
@@ -249,6 +247,22 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
+    }
+  };
+
+  const handleReviewConnectionRequest = async (request, action) => {
+    setReviewingReassignId(request.id);
+    try {
+      await apiClient(`/mentorship/reassign-requests/${request.id}/review`, {
+        method: 'POST',
+        body: JSON.stringify({ action })
+      });
+      showNotification(action === 'APPROVE' ? 'Request approved; existing mentorship connection ended.' : 'Request rejected.', 'success');
+      await fetchOperationsData();
+    } catch (err) {
+      showNotification(err.message, 'error');
+    } finally {
+      setReviewingReassignId(null);
     }
   };
 
@@ -745,13 +759,15 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                     {rr.status === 'PENDING' && (
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button
-                          onClick={() => { setReassignReviewModal({ request: rr, action: 'APPROVE' }); setReassignNewMentor(''); setReassignAdminNote(''); }}
+                          disabled={reviewingReassignId === rr.id}
+                          onClick={() => handleReviewConnectionRequest(rr, 'APPROVE')}
                           className="btn btn-primary btn-sm" style={{ flex: 1, fontSize: '0.78rem' }}
                         >
-                          ✓ Approve & Assign New Mentor
+                          ✓ Approve & End Connection
                         </button>
                         <button
-                          onClick={() => { setReassignReviewModal({ request: rr, action: 'REJECT' }); setReassignAdminNote(''); }}
+                          disabled={reviewingReassignId === rr.id}
+                          onClick={() => handleReviewConnectionRequest(rr, 'REJECT')}
                           className="btn btn-danger btn-sm" style={{ flex: 1, fontSize: '0.78rem' }}
                         >
                           ✕ Reject
