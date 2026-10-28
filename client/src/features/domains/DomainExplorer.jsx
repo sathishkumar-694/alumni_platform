@@ -16,6 +16,7 @@ import {
   Server,
   Plus,
   Users,
+  User,
   Award,
   CheckCircle2,
   BookmarkCheck,
