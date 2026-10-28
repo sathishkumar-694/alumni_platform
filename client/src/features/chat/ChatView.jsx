@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { apiClient } from '../../shared/services/api';
 import {
@@ -6,7 +6,6 @@ import {
   Send,
   Search,
   Lock,
-  User,
   RefreshCw,
   ArrowLeft,
   CheckCheck,
@@ -266,7 +265,7 @@ function MessageBubble({ msg, isOwn }) {
             ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
             : 'var(--bg-subtle)',
           border: isOwn ? 'none' : '1px solid var(--border-card)',
-          color: isOwn ? 'var(--chat-own-message-text, #111827)' : 'var(--text-main)',
+          color: isOwn ? 'var(--chat-own-message-text)' : 'var(--text-main)',
           fontSize: '0.85rem',
           lineHeight: 1.5,
           wordBreak: 'break-word',
@@ -322,9 +321,13 @@ function ChatWindow({ conversation, currentUser, onBack }) {
 
   // Initial load + poll every 5s
   useEffect(() => {
-    fetchMessages(false);
-    pollRef.current = setInterval(() => fetchMessages(true), 5000);
-    return () => clearInterval(pollRef.current);
+    const initialFetch = window.setTimeout(() => { void fetchMessages(false); }, 0);
+    pollRef.current = setInterval(() => { void fetchMessages(true); }, 5000);
+    
+    return () => {
+      window.clearTimeout(initialFetch);
+      clearInterval(pollRef.current);
+    };
   }, [fetchMessages]);
 
   // Auto-scroll to bottom when messages update

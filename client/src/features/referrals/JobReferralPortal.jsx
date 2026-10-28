@@ -1,24 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import {
-  Briefcase,
   Building,
   Send,
   Plus,
   CheckCircle2,
-  Award,
-  ExternalLink,
-  Sparkles,
-  UserCheck,
   X,
   FileText,
   Download,
   Paperclip,
   Upload,
-  Search
-  , Users
+  Search,
+  Users
 } from 'lucide-react';
 
 export const JobReferralPortal = () => {
@@ -29,6 +24,8 @@ export const JobReferralPortal = () => {
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [resumeFiles, setResumeFiles] = useState({});
   const [applicationMessages, setApplicationMessages] = useState({});
+  const [applicationJob, setApplicationJob] = useState(null);
+  const [submittingApplication, setSubmittingApplication] = useState(false);
   const [loading, setLoading] = useState(true);
   const [incomingApplications, setIncomingApplications] = useState([]);
   const [applicantsJob, setApplicantsJob] = useState(null);
@@ -48,7 +45,7 @@ export const JobReferralPortal = () => {
   });
 
   // Fetch real-time job referral drives from MySQL backend API
-  const fetchJobData = async () => {
+  const fetchJobData = useCallback(async () => {
     try {
       const res = await apiClient('/referrals');
       setJobList(res.data || []);
@@ -65,11 +62,12 @@ export const JobReferralPortal = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
-    fetchJobData();
-  }, [user]);
+    const timer = window.setTimeout(() => { void fetchJobData(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchJobData]);
 
   const handleApplyReferral = async (job) => {
     if (appliedJobIds.includes(job.id)) return;
@@ -79,15 +77,21 @@ export const JobReferralPortal = () => {
       return;
     }
     try {
+      setSubmittingApplication(true);
       const formData = new FormData();
       formData.append('resume', resume);
       formData.append('message', applicationMessages[job.id] || '');
       await apiClient(`/referrals/${job.id}/apply`, { method: 'POST', body: formData });
       setAppliedJobIds(prev => [...prev, job.id]);
+      setApplicationJob(null);
+      setResumeFiles(current => ({ ...current, [job.id]: null }));
+      setApplicationMessages(current => ({ ...current, [job.id]: '' }));
       showNotification(`Internal Referral Application submitted to ${job.postedBy} at ${job.company}!`, 'success');
       fetchJobData();
     } catch (err) {
       showNotification(err.message, 'error');
+    } finally {
+      setSubmittingApplication(false);
     }
   };
 
@@ -336,11 +340,8 @@ export const JobReferralPortal = () => {
                 <div style={{ paddingTop: '0.85rem', borderTop: '1px solid var(--border-card)' }}>
                   {user?.role === 'STUDENT' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {!hasApplied && <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFiles(current => ({ ...current, [job.id]: e.target.files?.[0] || null }))} />}
-                      {!hasApplied && resumeFiles[job.id] && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{resumeFiles[job.id].name}</span>}
-                      {!hasApplied && <textarea value={applicationMessages[job.id] || ''} onChange={e => setApplicationMessages(current => ({ ...current, [job.id]: e.target.value }))} placeholder="Add a short message for the alumni mentor (optional)" rows={2} className="form-input" />}
-                      <button onClick={() => handleApplyReferral(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
-                        {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Apply with Resume</>}
+                      <button onClick={() => setApplicationJob(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
+                        {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Request Internal Referral</>}
                       </button>
                     </div>
                   ) : user?.role === 'ALUMNI' && job.is_owner ? (
@@ -354,6 +355,27 @@ export const JobReferralPortal = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Post Referral Modal */}
+      {applicationJob && (
+        <div className="modal-overlay" onClick={() => !submittingApplication && setApplicationJob(null)}>
+          <form className="modal-content" onClick={e => e.stopPropagation()} onSubmit={e => { e.preventDefault(); handleApplyReferral(applicationJob); }} style={{ maxWidth: '520px', width: '92%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+              <div><h3 style={{ color: 'var(--text-main)', margin: 0 }}>Request Internal Referral</h3><p style={{ color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>{applicationJob.title} • {applicationJob.company}</p></div>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={submittingApplication} onClick={() => setApplicationJob(null)}><X size={16} /></button>
+            </div>
+            <label className="form-label" htmlFor="referral-resume">Resume <span style={{ color: 'var(--accent-rose)' }}>*</span></label>
+            <input id="referral-resume" type="file" accept=".pdf,.doc,.docx" required onChange={e => setResumeFiles(current => ({ ...current, [applicationJob.id]: e.target.files?.[0] || null }))} />
+            {resumeFiles[applicationJob.id] && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.4rem 0' }}>{resumeFiles[applicationJob.id].name}</p>}
+            <label className="form-label" htmlFor="referral-message" style={{ display: 'block', marginTop: '1rem' }}>Message to mentor</label>
+            <textarea id="referral-message" value={applicationMessages[applicationJob.id] || ''} onChange={e => setApplicationMessages(current => ({ ...current, [applicationJob.id]: e.target.value }))} placeholder="Introduce yourself and explain why you are interested." rows={4} maxLength={3000} className="form-input" />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+              <button type="button" className="btn btn-secondary btn-sm" disabled={submittingApplication} onClick={() => setApplicationJob(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={submittingApplication || !resumeFiles[applicationJob.id]}>{submittingApplication ? 'Sending…' : 'Send request'}</button>
+            </div>
+          </form>
         </div>
       )}
 

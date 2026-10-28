@@ -1,22 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import {
-  Bell,
   Megaphone,
   Plus,
-  Calendar,
-  Tag,
   ShieldCheck,
   Trash2,
   Upload,
   FileText,
   Download,
-  ExternalLink,
   Paperclip,
-  X,
-  File
+  X
 } from 'lucide-react';
 
 export const AnnouncementFeed = () => {
@@ -31,7 +26,7 @@ export const AnnouncementFeed = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = useCallback(async () => {
     try {
       const res = await apiClient('/announcements');
       setAnnouncements(res.data || []);
@@ -40,11 +35,12 @@ export const AnnouncementFeed = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchAnnouncements();
-  }, []);
+    const timer = window.setTimeout(() => { void fetchAnnouncements(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchAnnouncements]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -125,8 +121,6 @@ export const AnnouncementFeed = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {announcements.map(ann => {
             const fileUrl = ann.file_url ? getAssetUrl(ann.file_url) : null;
-            const isImage = ann.file_url && /\.(jpg|jpeg|png|webp|svg|gif)$/i.test(ann.file_url);
-
             return (
               <div key={ann.id} className="glass-panel" style={{ padding: '1.75rem', borderRadius: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
