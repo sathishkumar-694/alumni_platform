@@ -18,7 +18,7 @@ export const createJob = asyncHandler(async (req, res) => {
 
 export const applyForReferral = asyncHandler(async (req, res) => {
   const { jobId } = req.params;
-  const result = await referralsService.applyForReferral(req.user, jobId, req.file);
+  const result = await referralsService.applyForReferral(req.user, jobId, req.file, req.body.message);
   return res.status(200).json(
     new ApiResponse(200, result, 'Referral application recorded in database successfully')
   );

@@ -69,7 +69,7 @@ export class ReferralsService {
     return newJob;
   }
 
-  async applyForReferral(studentUser, jobId, resumeFile) {
+  async applyForReferral(studentUser, jobId, resumeFile, message = '') {
     if (studentUser.role !== 'STUDENT') {
       throw new ApiError(403, 'Only verified students can submit referral applications');
     }
@@ -87,6 +87,7 @@ export class ReferralsService {
       student_id: studentUser.id,
       resume_url: resumeUrl,
       resume_name: resumeFile.originalname,
+      message: String(message || '').trim().slice(0, 3000),
       status: 'PENDING'
     });
 
@@ -141,6 +142,7 @@ export class ReferralsService {
         student_email: student?.email || 'N/A',
         resume_url: app.resume_url || null,
         resume_name: app.resume_name || null,
+        message: app.message || '',
         status: app.status || 'PENDING',
         applied_at: app.applied_at
       };

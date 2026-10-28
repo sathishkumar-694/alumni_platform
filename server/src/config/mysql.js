@@ -445,6 +445,7 @@ export const ensureDatabaseSchema = async () => {
         \`student_id\` VARCHAR(100) NOT NULL,
         \`resume_url\` TEXT NULL,
         \`resume_name\` VARCHAR(255) NULL,
+        \`message\` TEXT NULL,
         \`status\` VARCHAR(50) DEFAULT 'PENDING',
         \`applied_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -452,6 +453,7 @@ export const ensureDatabaseSchema = async () => {
 
     try { await connectionPool.query('ALTER TABLE `referral_applications` ADD COLUMN `resume_url` TEXT NULL'); } catch (e) { /* already present */ }
     try { await connectionPool.query('ALTER TABLE `referral_applications` ADD COLUMN `resume_name` VARCHAR(255) NULL'); } catch (e) { /* already present */ }
+    try { await connectionPool.query('ALTER TABLE `referral_applications` ADD COLUMN `message` TEXT NULL'); } catch (e) { /* already present */ }
 
     // Create Real-Time Notifications Table in MySQL
     await connectionPool.query(`

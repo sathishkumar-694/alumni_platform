@@ -424,8 +424,8 @@ export const db = {
     create: async (data) => {
       const id = data.id || `refapp-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `referral_applications` (`id`, `job_id`, `student_id`, `resume_url`, `resume_name`, `status`) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, data.job_id, data.student_id, data.resume_url, data.resume_name, data.status || 'PENDING']
+        'INSERT INTO `referral_applications` (`id`, `job_id`, `student_id`, `resume_url`, `resume_name`, `message`, `status`) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, data.job_id, data.student_id, data.resume_url, data.resume_name, data.message || '', data.status || 'PENDING']
       );
       const rows = await queryMySQL('SELECT * FROM `referral_applications` WHERE `id` = ?', [id]);
       return rows[0];

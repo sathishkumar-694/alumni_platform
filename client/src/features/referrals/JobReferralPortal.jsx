@@ -28,6 +28,7 @@ export const JobReferralPortal = () => {
   const [jobList, setJobList] = useState([]);
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [resumeFiles, setResumeFiles] = useState({});
+  const [applicationMessages, setApplicationMessages] = useState({});
   const [loading, setLoading] = useState(true);
   const [incomingApplications, setIncomingApplications] = useState([]);
   const [applicantsJob, setApplicantsJob] = useState(null);
@@ -80,6 +81,7 @@ export const JobReferralPortal = () => {
     try {
       const formData = new FormData();
       formData.append('resume', resume);
+      formData.append('message', applicationMessages[job.id] || '');
       await apiClient(`/referrals/${job.id}/apply`, { method: 'POST', body: formData });
       setAppliedJobIds(prev => [...prev, job.id]);
       showNotification(`Internal Referral Application submitted to ${job.postedBy} at ${job.company}!`, 'success');
@@ -336,6 +338,7 @@ export const JobReferralPortal = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       {!hasApplied && <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFiles(current => ({ ...current, [job.id]: e.target.files?.[0] || null }))} />}
                       {!hasApplied && resumeFiles[job.id] && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{resumeFiles[job.id].name}</span>}
+                      {!hasApplied && <textarea value={applicationMessages[job.id] || ''} onChange={e => setApplicationMessages(current => ({ ...current, [job.id]: e.target.value }))} placeholder="Add a short message for the alumni mentor (optional)" rows={2} className="form-input" />}
                       <button onClick={() => handleApplyReferral(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
                         {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Apply with Resume</>}
                       </button>
@@ -368,6 +371,7 @@ export const JobReferralPortal = () => {
               <div key={applicant.id} style={{ padding: '0.85rem', border: '1px solid var(--border-card)', borderRadius: '10px', marginTop: '0.5rem' }}>
                 <strong style={{ color: 'var(--text-main)' }}>{applicant.student_name}</strong>
                 <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0' }}>{applicant.student_email}</p>
+                {applicant.message && <p style={{ color: 'var(--text-main)', margin: '0.5rem 0', whiteSpace: 'pre-wrap' }}>{applicant.message}</p>}
                 {applicant.resume_url && <a href={getAssetUrl(applicant.resume_url)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', margin: '0.25rem 0' }}><Download size={14} /> View {applicant.resume_name || 'Resume'}</a>}
                 <span className={`badge ${applicant.status === 'APPROVED' ? 'badge-emerald' : applicant.status === 'REJECTED' ? 'badge-rose' : 'badge-cyan'}`}>
                   {applicant.status || 'PENDING'}
