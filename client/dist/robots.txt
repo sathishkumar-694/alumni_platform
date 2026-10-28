@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+Allow: /#home
+Allow: /#explore
+Allow: /#announcements
+Allow: /#resources
+
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /#dashboard
+Disallow: /#profile
+Disallow: /#resume_analyzer
+Disallow: /#admin_operations
+
+# Sitemap location
+Sitemap: https://campusbridge.bitsathy.ac.in/sitemap.xml
