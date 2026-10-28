@@ -27,7 +27,8 @@ import {
   Lock,
   Eye,
   EyeOff,
-  KeyRound
+  KeyRound,
+  Trash2
 } from 'lucide-react';
 
 export const AdminOperationsCenter = ({ activeSection }) => {

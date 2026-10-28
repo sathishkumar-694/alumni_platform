@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { updateStudentProfile, updateAlumniProfile, getAllUsersAdmin, updateUserByAdmin } from './users.controller.js';
+import { updateStudentProfile, updateAlumniProfile, getAllUsersAdmin, updateUserByAdmin, deleteUserByAdmin } from './users.controller.js';
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { authorize } from '../../middleware/role.middleware.js';
 
@@ -17,5 +17,6 @@ router.get('/admin/all', authorize('ADMIN'), getAllUsersAdmin);
 
 router.patch('/:userId', authorize('ADMIN'), updateUserByAdmin);
 router.patch('/admin/users/:userId', authorize('ADMIN'), updateUserByAdmin);
+router.delete('/:userId', authorize('ADMIN'), deleteUserByAdmin);
 
 export default router;

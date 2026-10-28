@@ -101,6 +101,22 @@ export class UsersService {
       profile
     };
   }
+
+  async deleteUserByAdmin(adminId, userId) {
+    const targetUser = await usersRepository.findUserById(userId);
+    if (!targetUser) throw new ApiError(404, 'Target user not found');
+    if (targetUser.role === 'ADMIN') throw new ApiError(400, 'Administrator accounts cannot be deleted here');
+
+    const deleted = await usersRepository.deleteUserAndRelatedData(userId);
+    if (!deleted) throw new ApiError(404, 'Target user not found');
+    await usersRepository.logAuditAction(
+      adminId,
+      'ADMIN_DELETED_USER',
+      null,
+      `Admin deleted ${targetUser.role} account ${targetUser.email} (${targetUser.id})`
+    );
+    return { id: userId };
+  }
 }
 
 export const usersService = new UsersService();

@@ -30,3 +30,8 @@ export const updateUserByAdmin = asyncHandler(async (req, res) => {
     new ApiResponse(200, result, 'User details updated by administrator successfully')
   );
 });
+
+export const deleteUserByAdmin = asyncHandler(async (req, res) => {
+  const result = await usersService.deleteUserByAdmin(req.user.id, req.params.userId);
+  return res.status(200).json(new ApiResponse(200, result, 'User account and related data deleted'));
+});
