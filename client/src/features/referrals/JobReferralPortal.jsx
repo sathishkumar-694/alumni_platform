@@ -73,10 +73,7 @@ export const JobReferralPortal = () => {
     if (appliedJobIds.includes(job.id)) return;
     const resume = resumeFiles[job.id];
     if (!resume) {
-      // Keep the request action as the entry point to the application form.
-      // This also makes older cached UI handlers open the form instead of
-      // showing a blocking validation toast.
-      setApplicationJob(job);
+      showNotification('Please attach your resume before sending the referral request.', 'error');
       return;
     }
     try {
@@ -96,6 +93,12 @@ export const JobReferralPortal = () => {
     } finally {
       setSubmittingApplication(false);
     }
+  };
+
+  const openApplicationForm = (job) => {
+    setResumeFiles(current => ({ ...current, [job.id]: null }));
+    setApplicationMessages(current => ({ ...current, [job.id]: '' }));
+    setApplicationJob(job);
   };
 
   const handleCreateJob = async (e) => {
@@ -343,7 +346,7 @@ export const JobReferralPortal = () => {
                 <div style={{ paddingTop: '0.85rem', borderTop: '1px solid var(--border-card)' }}>
                   {user?.role === 'STUDENT' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button type="button" onClick={() => setApplicationJob(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
+                      <button type="button" onClick={() => openApplicationForm(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
                         {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Request Internal Referral</>}
                       </button>
                     </div>
@@ -396,7 +399,16 @@ export const JobReferralPortal = () => {
               <div key={applicant.id} style={{ padding: '0.85rem', border: '1px solid var(--border-card)', borderRadius: '10px', marginTop: '0.5rem' }}>
                 <strong style={{ color: 'var(--text-main)' }}>{applicant.student_name}</strong>
                 <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0' }}>{applicant.student_email}</p>
-                {applicant.message && <p style={{ color: 'var(--text-main)', margin: '0.5rem 0', whiteSpace: 'pre-wrap' }}>{applicant.message}</p>}
+                  {applicant.student_profile && (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: 1.6, margin: '0.5rem 0' }}>
+                      {applicant.student_profile.reg_number && <p style={{ margin: 0 }}><strong>Registration number:</strong> {applicant.student_profile.reg_number}</p>}
+                      {applicant.student_profile.academic_year && <p style={{ margin: 0 }}><strong>Academic year:</strong> {applicant.student_profile.academic_year}</p>}
+                      {applicant.student_profile.department && <p style={{ margin: 0 }}><strong>Department:</strong> {applicant.student_profile.department}</p>}
+                      {applicant.student_profile.career_goals && <p style={{ margin: 0 }}><strong>Career goals:</strong> {applicant.student_profile.career_goals}</p>}
+                      {applicant.student_profile.interests?.length > 0 && <p style={{ margin: 0 }}><strong>Interests:</strong> {applicant.student_profile.interests.join(', ')}</p>}
+                    </div>
+                  )}
+                  {applicant.message && <p style={{ color: 'var(--text-main)', margin: '0.5rem 0', whiteSpace: 'pre-wrap' }}>{applicant.message}</p>}
                 {applicant.resume_url && <a href={getAssetUrl(applicant.resume_url)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', margin: '0.25rem 0' }}><Download size={14} /> View {applicant.resume_name || 'Resume'}</a>}
                 <span className={`badge ${applicant.status === 'APPROVED' ? 'badge-emerald' : applicant.status === 'REJECTED' ? 'badge-rose' : 'badge-cyan'}`}>
                   {applicant.status || 'PENDING'}

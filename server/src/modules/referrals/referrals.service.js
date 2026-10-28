@@ -131,7 +131,10 @@ export class ReferralsService {
     const incomingApps = allApps.filter(a => myJobIds.includes(String(a.job_id)));
 
     return await Promise.all(incomingApps.map(async (app) => {
-      const student = await referralsRepository.findUserById(app.student_id);
+      const [student, profile] = await Promise.all([
+        referralsRepository.findUserById(app.student_id),
+        referralsRepository.findStudentProfile(app.student_id)
+      ]);
       const job = myJobs.find(j => String(j.id) === String(app.job_id));
       return {
         id: app.id,
@@ -140,6 +143,13 @@ export class ReferralsService {
         company: job?.company || 'Tech Firm',
         student_name: student?.name || 'Student Applicant',
         student_email: student?.email || 'N/A',
+        student_profile: profile ? {
+          reg_number: profile.reg_number || '',
+          academic_year: profile.academic_year || '',
+          department: profile.department || '',
+          career_goals: profile.career_goals || '',
+          interests: profile.interests || []
+        } : null,
         resume_url: app.resume_url || null,
         resume_name: app.resume_name || null,
         message: app.message || '',

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { CheckCircle2, Clock, Plus, Target, Paperclip, Upload, X, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, Plus, Target, FileText } from 'lucide-react';
 
 export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const { showNotification } = useNotification();
@@ -11,7 +11,6 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [resourceFile, setResourceFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchMilestones = async () => {
@@ -35,35 +34,20 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
 
     setSubmitting(true);
     try {
-      if (resourceFile) {
-        const formData = new FormData();
-        formData.append('mentorshipId', mentorshipId);
-        formData.append('title', title.trim());
-        formData.append('description', description.trim());
-        if (dueDate) formData.append('dueDate', dueDate);
-        formData.append('resourceFile', resourceFile);
+      await apiClient('/sessions/milestones', {
+        method: 'POST',
+        body: JSON.stringify({
+          mentorshipId,
+          title: title.trim(),
+          description: description.trim(),
+          dueDate
+        })
+      });
 
-        await apiClient('/sessions/milestones', {
-          method: 'POST',
-          body: formData
-        });
-      } else {
-        await apiClient('/sessions/milestones', {
-          method: 'POST',
-          body: JSON.stringify({
-            mentorshipId,
-            title: title.trim(),
-            description: description.trim(),
-            dueDate
-          })
-        });
-      }
-
-      showNotification('Milestone with study/resource material added to roadmap!', 'success');
+      showNotification('Milestone added to roadmap!', 'success');
       setTitle('');
       setDescription('');
       setDueDate('');
-      setResourceFile(null);
       setShowAddForm(false);
       fetchMilestones();
     } catch (err) {
@@ -127,40 +111,8 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
             />
           </div>
 
-          {/* Resource Material File Upload */}
-          <div className="form-group" style={{ marginBottom: '1.1rem' }}>
-            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-main)' }}>
-              <Paperclip size={14} color="var(--primary)" /> Attach Resource Material / Problem Set (Optional)
-            </label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: '#ffffff', padding: '0.6rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
-              <input
-                type="file"
-                id="milestoneResourceFileInput"
-                style={{ display: 'none' }}
-                onChange={(e) => setResourceFile(e.target.files[0] || null)}
-                accept=".pdf,.doc,.docx,.txt,.zip,.png,.jpg,.jpeg"
-              />
-              <label htmlFor="milestoneResourceFileInput" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0, fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Upload size={13} /> {resourceFile ? 'Change File' : 'Upload Resource File'}
-              </label>
-              <span style={{ fontSize: '0.8rem', color: resourceFile ? 'var(--primary)' : 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                {resourceFile ? `📎 ${resourceFile.name} (${Math.round(resourceFile.size / 1024)} KB)` : 'Supports PDF, Docx, Text, Zip, or Image'}
-              </span>
-              {resourceFile && (
-                <button
-                  type="button"
-                  onClick={() => setResourceFile(null)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
-                  title="Remove file"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
-          </div>
-
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => { setShowAddForm(false); setResourceFile(null); }} className="btn btn-secondary btn-sm" disabled={submitting}>
+            <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary btn-sm" disabled={submitting}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={submitting}>
@@ -261,4 +213,3 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
     </div>
   );
 };
-

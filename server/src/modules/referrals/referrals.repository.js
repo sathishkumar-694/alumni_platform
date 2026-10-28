@@ -21,6 +21,10 @@ export class ReferralsRepository {
     return await db.alumniProfiles.findByUserId(userId);
   }
 
+  async findStudentProfile(userId) {
+    return await db.studentProfiles.findByUserId(userId);
+  }
+
   async findAllApplications() {
     return await db.referralApplications.find();
   }

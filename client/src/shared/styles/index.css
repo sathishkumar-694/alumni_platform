@@ -1,7 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --chat-own-message-text: #000000;
   --bg-dark: #f8fafc;        /* Main Light Canvas Background */
   --bg-card: #ffffff;        /* White Clean Card Surface */
   --bg-card-hover: #f1f5f9;  /* Soft Hover Surface */
@@ -52,7 +51,6 @@
    Accurate BIT Information Portal Theme: Premium Slate-Blue Charcoal
 ======================================================== */
 [data-theme="dark"] {
-  --chat-own-message-text: #ffffff;
   --bg-dark: #0c1424;        /* Rich Slate-Blue Midnight Canvas */
   --bg-card: #121c30;        /* Elegant Dark Slate-Blue Card Surface */
   --bg-card-hover: #17243c;  /* Soft Slate-Blue Hover Surface */
@@ -539,4 +537,3 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.85rem !important;
   }
 }
-

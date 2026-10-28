@@ -265,7 +265,7 @@ function MessageBubble({ msg, isOwn }) {
             ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
             : 'var(--bg-subtle)',
           border: isOwn ? 'none' : '1px solid var(--border-card)',
-          color: isOwn ? 'var(--chat-own-message-text)' : 'var(--text-main)',
+          color: 'var(--text-main)',
           fontSize: '0.85rem',
           lineHeight: 1.5,
           wordBreak: 'break-word',
@@ -374,7 +374,7 @@ function ChatWindow({ conversation, currentUser, onBack }) {
       });
       // Replace optimistic with real
       setMessages((prev) => prev.map((m) => (m.id === tempMsg.id ? res.data : m)));
-    } catch (e) {
+    } catch {
       // Remove optimistic on error
       setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
       setInput(content); // Restore
