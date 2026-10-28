@@ -309,6 +309,9 @@ export const ensureDatabaseSchema = async () => {
     `);
 
     try {
+      await connectionPool.query("ALTER TABLE `announcements` MODIFY COLUMN `category` VARCHAR(100) DEFAULT 'GENERAL'");
+    } catch (e) {}
+    try {
       await connectionPool.query("ALTER TABLE `announcements` ADD COLUMN `file_url` TEXT");
     } catch (e) {}
     try {
@@ -371,6 +374,23 @@ export const ensureDatabaseSchema = async () => {
         ]
       );
     }
+
+    // Auto-seed default Admin user if missing or reset password hash
+    try {
+      const adminPassHash = bcrypt.hashSync('admin', 10);
+      const [existingAdmin] = await connectionPool.query("SELECT COUNT(*) as count FROM `users` WHERE `email` = 'admin@bitsathy.ac.in'");
+      if (existingAdmin[0].count === 0) {
+        await connectionPool.query(
+          "INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `verification_status`) VALUES (?, ?, ?, ?, ?, ?)",
+          ['admin-1', 'Campus Admin', 'admin@bitsathy.ac.in', adminPassHash, 'ADMIN', 'VERIFIED']
+        );
+      } else {
+        await connectionPool.query(
+          "UPDATE `users` SET `password_hash` = ?, `role` = 'ADMIN', `verification_status` = 'VERIFIED' WHERE `email` = 'admin@bitsathy.ac.in'",
+          [adminPassHash]
+        );
+      }
+    } catch (_) {}
 
     // Create Mentor Domain Addition Requests Table
     await connectionPool.query(`

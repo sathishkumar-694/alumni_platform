@@ -22,7 +22,6 @@ export const uploadToCloudinary = async (filePath, folder = 'campusbridge_upload
       resource_type: 'auto'
     });
 
-    console.log(`[Cloudinary Success] File uploaded successfully: ${result.secure_url}`);
     return result.secure_url;
   } catch (error) {
     console.warn(`[Cloudinary Fallback] Could not upload to Cloudinary (${error.message}). Returning local storage path.`);
@@ -53,14 +52,12 @@ export const uploadResumeBackup = async ({
       }
 
       if (uploadPayload) {
-        console.log(`[Cloudinary] Uploading resume backup '${sanitizedName}' to Cloudinary...`);
         const result = await cloudinary.uploader.upload(uploadPayload, {
           folder: 'campusbridge/resumes',
           public_id: publicId,
           resource_type: 'auto'
         });
 
-        console.log(`[Cloudinary Backup Success] Resume backed up to Cloudinary: ${result.secure_url}`);
         return {
           url: result.secure_url,
           provider: 'Cloudinary Cloud Storage',
@@ -91,7 +88,6 @@ export const uploadResumeBackup = async ({
     }
 
     const localUrl = `/uploads/resumes/${localFileName}`;
-    console.log(`[Local Disk Backup Success] Resume safely backed up to disk: ${localUrl}`);
     return {
       url: localUrl,
       provider: 'Local Disk Backup (/uploads/resumes)',

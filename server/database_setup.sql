@@ -8,6 +8,7 @@ USE `campusbridge`;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS `chat_messages`;
 DROP TABLE IF EXISTS `referral_applications`;
 DROP TABLE IF EXISTS `jobs`;
 DROP TABLE IF EXISTS `notifications`;
@@ -162,6 +163,21 @@ CREATE TABLE `audit_logs` (
   `target_user_id` VARCHAR(50),
   `details` TEXT,
   `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 12. Chat Messages Table (Private mentor-student messaging)
+CREATE TABLE `chat_messages` (
+  `id`            VARCHAR(60)  NOT NULL PRIMARY KEY,
+  `mentorship_id` VARCHAR(50)  NOT NULL,
+  `sender_id`     VARCHAR(50)  NOT NULL,
+  `content`       TEXT         NOT NULL,
+  `is_read`       TINYINT(1)   DEFAULT 0,
+  `created_at`    DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_chat_mentorship (`mentorship_id`),
+  INDEX idx_chat_sender     (`sender_id`),
+  INDEX idx_chat_created    (`created_at`),
+  FOREIGN KEY (`mentorship_id`) REFERENCES `active_mentorships`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`sender_id`)     REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 

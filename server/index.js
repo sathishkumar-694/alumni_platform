@@ -22,6 +22,8 @@ import referralsRoutes from './src/modules/referrals/referrals.routes.js';
 import notificationsRoutes from './src/modules/notifications/notifications.routes.js';
 import analyticsRoutes from './src/modules/analytics/analytics.routes.js';
 import auditRoutes from './src/modules/audit/audit.routes.js';
+import chatRoutes from './src/modules/chat/chat.routes.js';
+import { ensureChatSchema } from './src/modules/chat/chat.service.js';
 
 const app = express();
 
@@ -121,6 +123,7 @@ app.use('/api/v1/referrals', referralsRoutes);
 app.use('/api/v1/notifications', notificationsRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/audit', auditRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 // Route Aliases for backward compatibility
 app.use('/auth', authRoutes);
@@ -136,6 +139,7 @@ app.use('/referrals', referralsRoutes);
 app.use('/notifications', notificationsRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/audit', auditRoutes);
+app.use('/chat', chatRoutes);
 
 // Serve production built client static assets if available
 const candidateDistPaths = [
@@ -163,6 +167,7 @@ app.use(errorMiddleware);
 
 const startServer = async (portToTry) => {
   await ensureDatabaseSchema();
+  await ensureChatSchema();
   const server = app.listen(portToTry, () => {
     console.log(`CampusBridge Backend Engine listening on http://localhost:${portToTry}`);
     console.log(`Swagger Interactive API Docs available at http://localhost:${portToTry}/docs`);

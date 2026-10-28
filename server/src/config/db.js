@@ -380,6 +380,10 @@ export const db = {
     find: async () => {
       return await queryMySQL('SELECT * FROM `job_referrals` ORDER BY `created_at` DESC');
     },
+    findById: async (id) => {
+      const rows = await queryMySQL('SELECT * FROM `job_referrals` WHERE `id` = ?', [id]);
+      return rows[0] || null;
+    },
     create: async (data) => {
       const id = data.id || `ref-${Date.now()}`;
       await queryMySQL(

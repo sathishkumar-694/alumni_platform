@@ -31,6 +31,7 @@ import { PrivacyPolicyView } from './features/legal/PrivacyPolicyView';
 import { TermsAndConditionsView } from './features/legal/TermsAndConditionsView';
 import { ThankYouView } from './features/common/ThankYouView';
 import { NotFoundView } from './features/common/NotFoundView';
+import { ChatView } from './features/chat/ChatView';
 
 import useDocumentMeta from './shared/hooks/useDocumentMeta';
 import analytics from './shared/services/analytics';
@@ -45,7 +46,7 @@ const getInitialTab = () => {
 
 const knownTabs = [
   'home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404',
-  'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile',
+  'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile', 'chat',
   'resume_analyzer', 'recommended_mentors', 'referrals',
   'admin_operations', 'admin_analytics', 'admin_verifications', 'admin_matrix', 'admin_requests', 'admin_users', 'admin_domains'
 ];
@@ -204,6 +205,9 @@ const MainContent = () => {
 
             {/* Alumni Job Referral Portal */}
             {activeTab === 'referrals' && <JobReferralPortal />}
+
+            {/* Private Mentorship Chat */}
+            {user && activeTab === 'chat' && <ChatView />}
 
             {/* Admin Operations Center Dedicated Tabs */}
             {user && (

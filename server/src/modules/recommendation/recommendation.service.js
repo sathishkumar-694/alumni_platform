@@ -169,7 +169,6 @@ Return RAW JSON ONLY with NO markdown syntax:
         providersToAttempt.push(...allAvailable);
       }
     }
-    console.log(`[AI Orchestrator] Execution cascade order: [${providersToAttempt.join(' -> ')} -> In-House Engine]`);
 
     // Helper to match mentors with missing skills
     // Option A: Rank Mentors specifically for Resume Skill Gaps, Levels & Achievements
@@ -194,19 +193,6 @@ Return RAW JSON ONLY with NO markdown syntax:
       const backupInfo = await backupPromise.catch(() => null);
       const latencyMs = Date.now() - startTime;
       const rankedMentors = resolveMatchedMentors(missing);
-
-      console.log(`\n============================================================`);
-      console.log(`🎯 [AI ATS EVALUATION PROCESSED]`);
-      console.log(`AI Engine: ${provider} (Online Cloud AI: ${isOnline})`);
-      console.log(`Response Time: ${(latencyMs / 1000).toFixed(2)}s`);
-      console.log(`Candidate: ${currentUser?.name || currentUser?.email || 'Student'}`);
-      console.log(`Target Role: ${isJd ? 'Custom Job Description (JD)' : targetTitle}`);
-      console.log(`ATS Compatibility Match: ${score}%`);
-      console.log(`Matched Top Mentors: ${rankedMentors.length} mentors ranked (Levels 1-5 & Achievements)`);
-      if (backupInfo) {
-        console.log(`Resume Backup: [${backupInfo.provider}] -> ${backupInfo.url}`);
-      }
-      console.log(`============================================================\n`);
 
       // Automatically persist to resume_analyses history dashboard table
       let savedRecord = null;
@@ -263,7 +249,6 @@ Return RAW JSON ONLY with NO markdown syntax:
     // 1. ONLINE AI SERVICE: GOOGLE GEMINI (Multimodal PDF + Text)
     // ---------------------------------------------------------
     if (providersToAttempt.includes('gemini') && hasValidGeminiKey) {
-      console.log('[Gemini API Initiated] Calling Google Gemini API with active model...');
       const geminiModels = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-1.5-flash'];
 
       // Prepare payload contents
@@ -341,7 +326,6 @@ Return RAW JSON ONLY with NO markdown syntax:
     // 2. ONLINE AI SERVICE: GROQ CLOUD (Ultra-Fast Inference)
     // ---------------------------------------------------------
     if (providersToAttempt.includes('groq') && hasValidGroqKey) {
-      console.log('[Groq API Initiated] Calling Groq Cloud API...');
       const groqModels = ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 
       for (const groqModel of groqModels) {
@@ -407,7 +391,6 @@ Return RAW JSON ONLY with NO markdown syntax:
     // 3. ONLINE AI SERVICE: OPENAI (GPT-4o Mini)
     // ---------------------------------------------------------
     if (providersToAttempt.includes('openai') && hasValidOpenAiKey) {
-      console.log('[OpenAI API Initiated] Calling OpenAI API...');
       const openAiModels = ['gpt-4o-mini', 'gpt-4o'];
 
       for (const openAiModel of openAiModels) {
@@ -467,8 +450,6 @@ Return RAW JSON ONLY with NO markdown syntax:
     // ---------------------------------------------------------
     // 4. TIER 3 FALLBACK: Comprehensive 4-Pillar Algorithmic ATS Engine
     // ---------------------------------------------------------
-    console.log('[Tier 3 ATS Engine] Running realistic in-house 4-pillar ATS evaluation...');
-
     const combinedText = (cleanResumeText + ' ' + (fileName || '')).toLowerCase();
     const roleLower = targetTitle.toLowerCase();
     const jdLower = (jobDescription || '').toLowerCase();

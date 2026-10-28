@@ -13,7 +13,6 @@ export class JobQueue {
       status: 'COMPLETED'
     };
     this.jobs.push(job);
-    console.log(`[BullMQ Queue:${this.name}] Processed async job '${jobName}' (ID: ${job.id})`);
     return job;
   }
 

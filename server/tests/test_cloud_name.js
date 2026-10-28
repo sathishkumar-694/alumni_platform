@@ -20,9 +20,9 @@ async function testUpload() {
         api_secret: process.env.CLOUDINARY_API_SECRET,
         secure: true
       });
-      console.log(`Testing upload with cloud_name: "${name}"...`);
+      console.log('Testing upload configuration...');
       const res = await cloudinary.uploader.upload(dummy, { folder: 'test' });
-      console.log(`SUCCESS! URL:`, res.secure_url);
+      console.log('SUCCESS! Upload verified.');
       break;
     } catch (e) {
       console.log(`Failed for "${name}":`, e.message || e);

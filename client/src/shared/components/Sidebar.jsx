@@ -10,6 +10,7 @@ import {
   Sparkles,
   Users,
   MessageSquare,
+  MessageCircle,
   ChevronDown,
   ChevronRight,
   BookMarked,
@@ -264,6 +265,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                   MessageSquare
                 )}
                 {renderNavItem('sessions', '1-on-1 Virtual Sessions', Video)}
+                {!isAdmin && renderNavItem('chat', 'Private Mentorship Chat', MessageCircle)}
                 {renderNavItem('referrals', 'Job Referrals', Briefcase)}
               </div>
             )}

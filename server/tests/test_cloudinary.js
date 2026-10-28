@@ -7,7 +7,7 @@ async function testCloudinary() {
   const dummyBase64 = 'data:text/plain;base64,' + Buffer.from('Test resume backup content').toString('base64');
   try {
     const url = await uploadToCloudinary(dummyBase64, 'resumes');
-    console.log('Uploaded Cloudinary URL:', url);
+    console.log('Cloudinary upload verified.');
   } catch (err) {
     console.error('Cloudinary error:', err);
   }

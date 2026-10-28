@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import { config } from './src/config/env.js';
 
 async function initDB() {
-  console.log(`Connecting to MySQL host '${config.mysql.host}:${config.mysql.port}' (database: '${config.mysql.database}') as user '${config.mysql.user}'...`);
+  console.log('Connecting to MySQL database...');
 
   let connection;
   try {
@@ -39,7 +39,7 @@ async function initDB() {
       .replace(/USE `campusbridge`;/gi, '')
       .replace(/`campusbridge`\./gi, '');
 
-    console.log(`Executing database setup SQL script on '${config.mysql.database}'...`);
+    console.log('Executing database setup SQL script...');
     await connection.query(sqlScript);
 
     console.log('✅ All database tables created successfully!');

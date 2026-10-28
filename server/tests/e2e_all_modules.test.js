@@ -18,6 +18,7 @@ import referralsRoutes from '../src/modules/referrals/referrals.routes.js';
 import notificationsRoutes from '../src/modules/notifications/notifications.routes.js';
 import analyticsRoutes from '../src/modules/analytics/analytics.routes.js';
 import auditRoutes from '../src/modules/audit/audit.routes.js';
+import { ensureDatabaseSchema } from '../src/config/mysql.js';
 
 // Setup Test Server App
 const app = express();
@@ -79,6 +80,8 @@ const request = (path, options = {}, body = null) => {
 };
 
 const runAllModuleTests = async () => {
+  await ensureDatabaseSchema();
+
   console.log('\n=============================================================');
   console.log('🧪 RUNNING CAMPUSBRIDGE AUTOMATED FULL E2E MODULE TEST SUITE');
   console.log('=============================================================\n');
