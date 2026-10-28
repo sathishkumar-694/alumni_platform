@@ -25,6 +25,13 @@ export const updateSessionNotes = asyncHandler(async (req, res) => {
   );
 });
 
+export const completeSessionByStudent = asyncHandler(async (req, res) => {
+  const result = await sessionsService.completeSessionByStudent(req.user, req.params.sessionId);
+  return res.status(200).json(
+    new ApiResponse(200, result, 'Session marked as completed')
+  );
+});
+
 export const createMilestone = asyncHandler(async (req, res) => {
   const { mentorshipId, title, description, dueDate, resourceUrl, resource_url } = req.body;
   const result = await sessionsService.createMilestone(

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
-import { apiClient } from '../../shared/services/api';
+import { apiClient, getAssetUrl } from '../../shared/services/api';
 import {
   CheckCircle2, Upload, BookOpen, AlertCircle, Clock, Trophy,
   ChevronDown, ChevronUp, RefreshCw, FileText, X, Loader2
@@ -69,7 +69,7 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
             </p>
           )}
           {milestone.resource_url && (
-            <a href={milestone.resource_url} target="_blank" rel="noreferrer"
+            <a href={getAssetUrl(milestone.resource_url)} target="_blank" rel="noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.5rem', textDecoration: 'none' }}>
               <FileText size={13} /> View Study Material
             </a>
@@ -142,7 +142,7 @@ const MentorMilestoneCard = ({ milestone, onUploadMaterial, onMarkVerified }) =>
             </p>
           )}
           {milestone.resource_url && (
-            <a href={milestone.resource_url} target="_blank" rel="noreferrer"
+            <a href={getAssetUrl(milestone.resource_url)} target="_blank" rel="noreferrer"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.5rem', textDecoration: 'none' }}>
               <FileText size={13} /> Current Material
             </a>

@@ -18,6 +18,7 @@ import {
   Paperclip,
   Upload,
   Search
+  , Users
 } from 'lucide-react';
 
 export const JobReferralPortal = () => {
@@ -27,6 +28,8 @@ export const JobReferralPortal = () => {
   const [jobList, setJobList] = useState([]);
   const [appliedJobIds, setAppliedJobIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [incomingApplications, setIncomingApplications] = useState([]);
+  const [applicantsJob, setApplicantsJob] = useState(null);
 
   const [showPostJobModal, setShowPostJobModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -50,6 +53,9 @@ export const JobReferralPortal = () => {
       if (user?.role === 'STUDENT') {
         const appRes = await apiClient('/referrals/my-applications');
         setAppliedJobIds(appRes.data || []);
+      } else if (user?.role === 'ALUMNI') {
+        const applicationsRes = await apiClient('/referrals/mentor/incoming');
+        setIncomingApplications(applicationsRes.data || []);
       }
     } catch (err) {
       console.error('Failed to load real-time job referrals:', err);
@@ -310,15 +316,38 @@ export const JobReferralPortal = () => {
                     >
                       {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Request Internal Referral</>}
                     </button>
-                  ) : (
-                    <button className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
-                      Active Alumni Referral Drive
+                  ) : user?.role === 'ALUMNI' && job.is_owner ? (
+                    <button onClick={() => setApplicantsJob(job)} className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
+                      <Users size={14} /> View applicants ({incomingApplications.filter(a => String(a.job_id) === String(job.id)).length})
                     </button>
+                  ) : (
+                    <div className="btn btn-secondary btn-sm" style={{ width: '100%', textAlign: 'center' }}>Active Alumni Referral Drive</div>
                   )}
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Post Referral Modal */}
+      {applicantsJob && (
+        <div className="modal-overlay" onClick={() => setApplicantsJob(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '620px', width: '92%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div><h3 style={{ color: 'var(--text-main)' }}>Applicants</h3><p style={{ color: 'var(--text-muted)' }}>{applicantsJob.title} • {applicantsJob.company}</p></div>
+              <button type="button" onClick={() => setApplicantsJob(null)} className="btn btn-secondary btn-sm"><X size={16} /></button>
+            </div>
+            {incomingApplications.filter(a => String(a.job_id) === String(applicantsJob.id)).length === 0 ? (
+              <p style={{ color: 'var(--text-muted)' }}>No students have applied yet.</p>
+            ) : incomingApplications.filter(a => String(a.job_id) === String(applicantsJob.id)).map(applicant => (
+              <div key={applicant.id} style={{ padding: '0.85rem', border: '1px solid var(--border-card)', borderRadius: '10px', marginTop: '0.5rem' }}>
+                <strong style={{ color: 'var(--text-main)' }}>{applicant.student_name}</strong>
+                <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0' }}>{applicant.student_email}</p>
+                <span className="badge badge-cyan">{applicant.status}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

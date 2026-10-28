@@ -1,6 +1,7 @@
 import { sessionsRepository } from './sessions.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
 import { uploadToCloud } from '../../config/cloudinary.js';
+import path from 'path';
 import { notificationsService } from '../notifications/notifications.service.js';
 
 export class SessionsService {
@@ -98,6 +99,32 @@ export class SessionsService {
     return await sessionsRepository.updateSession(sessionId, updates);
   }
 
+  async completeSessionByStudent(user, sessionId) {
+    const session = await sessionsRepository.findSessionById(sessionId);
+    if (!session) {
+      throw new ApiError(404, 'Session not found');
+    }
+
+    const mentorship = await sessionsRepository.findActiveMentorshipById(session.mentorship_id);
+    if (!mentorship || String(mentorship.student_id) !== String(user.id)) {
+      throw new ApiError(403, 'Only the student in this mentorship can mark the session completed');
+    }
+    if (!['CONFIRMED', 'SCHEDULED'].includes(session.status)) {
+      throw new ApiError(400, 'Only a scheduled or confirmed session can be marked completed');
+    }
+
+    const updated = await sessionsRepository.updateSession(sessionId, { status: 'COMPLETED' });
+    await notificationsService.createNotification({
+      user_id: mentorship.mentor_id,
+      type: 'SESSION_COMPLETED',
+      title: '✅ Mentorship Session Completed',
+      desc: `${user.name || 'Your student'} marked "${session.topic || '1-on-1 session'}" as completed.`,
+      target_tab: 'sessions'
+    }).catch(() => {});
+
+    return updated;
+  }
+
   async createMilestone(mentorshipId, { title, description, dueDate, resourceUrl }, file) {
     const mentorship = await sessionsRepository.findActiveMentorshipById(mentorshipId);
     if (!mentorship) {
@@ -106,7 +133,11 @@ export class SessionsService {
 
     let finalResourceUrl = resourceUrl || '';
     if (file) {
-      finalResourceUrl = await uploadToCloud(file.path, 'milestone_materials');
+      // Multer already keeps the uploaded file in server/uploads and Express
+      // serves that directory. Use this URL for PDFs because Cloudinary may
+      // block PDF delivery even when its upload succeeds.
+      await uploadToCloud(file.path, 'milestone_materials');
+      finalResourceUrl = `/uploads/${path.basename(file.path)}`;
     }
 
     const milestone = await sessionsRepository.createMilestone({

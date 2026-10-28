@@ -24,6 +24,21 @@ export const ensureReassignSchema = async () => {
       INDEX idx_rr_status     (\`status\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
+
+  // Earlier versions created this table with numeric IDs and a numeric
+  // mentorship_id. The current application uses string IDs (for example,
+  // "am-...") from active_mentorships, so migrate those columns in place.
+  const columns = await queryMySQL('SHOW COLUMNS FROM `reassign_requests`');
+  const columnMap = new Map(columns.map(column => [column.Field, String(column.Type).toLowerCase()]));
+  if (columnMap.get('id')?.includes('bigint')) {
+    await queryMySQL('ALTER TABLE `reassign_requests` MODIFY COLUMN `id` VARCHAR(60) NOT NULL');
+  }
+  if (columnMap.get('mentorship_id')?.includes('bigint')) {
+    await queryMySQL('ALTER TABLE `reassign_requests` MODIFY COLUMN `mentorship_id` VARCHAR(50) NOT NULL');
+  }
+  if (!columnMap.has('reviewed_at')) {
+    await queryMySQL('ALTER TABLE `reassign_requests` ADD COLUMN `reviewed_at` DATETIME NULL');
+  }
 };
 
 /**

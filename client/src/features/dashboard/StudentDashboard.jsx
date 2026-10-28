@@ -414,9 +414,11 @@ export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: activeSection === 'sessions' ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
                       <SessionTracker mentorshipId={m.id} userRole="STUDENT" />
-                      <MilestoneTracker mentorshipId={m.id} userRole="STUDENT" />
+                      {activeSection !== 'sessions' && (
+                        <MilestoneTracker mentorshipId={m.id} userRole="STUDENT" />
+                      )}
                     </div>
                   </div>
                 );

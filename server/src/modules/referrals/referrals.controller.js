@@ -3,7 +3,7 @@ import { ApiResponse } from '../../shared/responseHelper.js';
 import { asyncHandler } from '../../shared/asyncHandler.js';
 
 export const getAllJobs = asyncHandler(async (req, res) => {
-  const result = await referralsService.getAllJobs();
+  const result = await referralsService.getAllJobs(req.user);
   return res.status(200).json(
     new ApiResponse(200, result, 'Real-time job referral drives fetched successfully from database')
   );

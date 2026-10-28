@@ -4,13 +4,14 @@ import { uploadToCloud } from '../../config/cloudinary.js';
 import { notificationsService } from '../notifications/notifications.service.js';
 
 export class ReferralsService {
-  async getAllJobs() {
+  async getAllJobs(user) {
     const jobs = await referralsRepository.findAllJobs();
     return await Promise.all(jobs.map(async (j) => {
       const alumni = await referralsRepository.findUserById(j.alumni_id);
       const profile = await referralsRepository.findAlumniProfile(j.alumni_id);
       return {
         id: j.id,
+        is_owner: String(j.alumni_id) === String(user?.id),
         title: j.title,
         company: j.company,
         location: j.location,

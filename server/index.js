@@ -25,8 +25,8 @@ import auditRoutes from './src/modules/audit/audit.routes.js';
 import chatRoutes from './src/modules/chat/chat.routes.js';
 import { ensureChatSchema } from './src/modules/chat/chat.service.js';
 import presenceRoutes, { ensureOnlineStatusSchema } from './src/modules/presence/presence.routes.js';
-import reassignRequestsRoutes, { ensureReassignRequestsSchema } from './src/modules/mentorship/reassign.requests.routes.js';
 import reassignRoutes from './src/modules/mentorship/reassign.routes.js';
+import { ensureReassignSchema } from './src/modules/mentorship/reassign.controller.js';
 
 const app = express();
 
@@ -128,7 +128,6 @@ app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/presence', presenceRoutes);
-app.use('/api/v1/mentorship', reassignRequestsRoutes);
 app.use('/api/v1', reassignRoutes);
 
 // Route Aliases for backward compatibility
@@ -177,7 +176,7 @@ const startServer = async (portToTry) => {
   await ensureDatabaseSchema();
   await ensureChatSchema();
   await ensureOnlineStatusSchema();
-  await ensureReassignRequestsSchema();
+  await ensureReassignSchema();
   const server = app.listen(portToTry, () => {
     console.log(`CampusBridge Backend Engine listening on http://localhost:${portToTry}`);
     console.log(`Swagger Interactive API Docs available at http://localhost:${portToTry}/docs`);

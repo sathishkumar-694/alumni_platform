@@ -219,7 +219,9 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '0.5rem'
+        padding: '0.5rem',
+        overflowY: 'auto',
+        boxSizing: 'border-box'
       }}
     >
       <div
@@ -229,13 +231,14 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
           width: '98vw',
           maxWidth: '1350px',
           height: '92vh',
-          maxHeight: '900px',
+          maxHeight: 'calc(100dvh - 1rem)',
           background: '#0a0f1d',
           border: '1px solid #1e293b',
           borderRadius: '16px',
           display: 'flex',
           flexDirection: 'column',
-          overflow: 'hidden',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           padding: 0,
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)'
         }}
@@ -243,17 +246,20 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         {/* Top Meeting Header Bar */}
         <div
           style={{
-            height: '60px',
+            minHeight: '60px',
+            height: 'auto',
             background: '#111827',
             borderBottom: '1px solid #1f2937',
             padding: '0 1.25rem',
             display: 'flex',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexShrink: 0
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: '1 1 300px', minWidth: 0 }}>
             <div style={{ background: 'rgba(2, 132, 199, 0.2)', padding: '0.5rem', borderRadius: '10px', color: '#38bdf8' }}>
               <Video size={20} />
             </div>
@@ -271,8 +277,9 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
           </div>
 
           {/* Interactive Workspace Tab Selector */}
-          <div style={{ display: 'flex', background: '#1f2937', padding: '0.25rem', borderRadius: '8px', gap: '0.25rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', flex: '1 1 480px', minWidth: 0, justifyContent: 'center', background: '#1f2937', padding: '0.25rem', borderRadius: '8px', gap: '0.25rem' }}>
             <button
+              type="button"
               onClick={() => setActiveTab('video')}
               className={`btn btn-sm ${activeTab === 'video' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', border: 'none' }}
@@ -280,6 +287,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
               <Video size={13} /> Dual HD Video Call
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('whiteboard')}
               className={`btn btn-sm ${activeTab === 'whiteboard' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', border: 'none' }}
@@ -287,6 +295,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
               <PenTool size={13} /> Architecture Whiteboard
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('code')}
               className={`btn btn-sm ${activeTab === 'code' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', border: 'none' }}
@@ -294,6 +303,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
               <Code size={13} /> Code Interview Sandbox
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('chat')}
               className={`btn btn-sm ${activeTab === 'chat' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem', border: 'none' }}
@@ -304,6 +314,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
 
           {/* Leave Call Action Button */}
           <button
+            type="button"
             onClick={onClose}
             className="btn btn-danger btn-sm"
             style={{ fontSize: '0.8rem', padding: '0.45rem 1rem' }}

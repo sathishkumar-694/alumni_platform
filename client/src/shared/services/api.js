@@ -17,6 +17,27 @@ let cachedActiveApiBaseUrl = (() => {
 })();
 
 let activePortPromise = null;
+let sessionValidation = null;
+
+const isCurrentSessionInvalid = async (token) => {
+  if (!token) return true;
+  if (!sessionValidation || sessionValidation.token !== token) {
+    const promise = fetch(`${getApiOrigin()}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store'
+    })
+      .then((response) => response.status === 401)
+      .catch(() => false);
+    sessionValidation = {
+      token,
+      promise
+    };
+    promise.then(() => {
+      if (sessionValidation?.promise === promise) sessionValidation = null;
+    });
+  }
+  return await sessionValidation.promise;
+};
 
 export const getActiveApiUrl = async (forceRefresh = false) => {
   if (!forceRefresh && cachedActiveApiBaseUrl && typeof cachedActiveApiBaseUrl === 'string') {
@@ -162,17 +183,20 @@ export const apiClient = async (endpoint, options = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
-    // Auto-logout ONLY when a protected (non-auth) endpoint returns 401
-    // This handles expired/invalid tokens gracefully without breaking login
+    // A single protected endpoint may reject for a route-specific reason.
+    // Validate the token itself before ending the user's session.
     const isAuthEndpoint = rawEndpoint.startsWith('/auth/');
     if (response.status === 401 && !isAuthEndpoint) {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('campusbridge_token');
-        localStorage.removeItem('campusbridge_user');
-        localStorage.removeItem('campusbridge_active_tab');
-      }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('campusbridge:session_expired'));
+      const tokenIsInvalid = await isCurrentSessionInvalid(token);
+      if (tokenIsInvalid) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('campusbridge_token');
+          localStorage.removeItem('campusbridge_user');
+          localStorage.removeItem('campusbridge_active_tab');
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('campusbridge:session_expired'));
+        }
       }
     }
     throw new Error(data.message || 'An error occurred while communicating with the server');

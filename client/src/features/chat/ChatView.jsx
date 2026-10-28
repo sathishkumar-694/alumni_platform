@@ -69,7 +69,7 @@ function ConversationList({ conversations, selectedId, onSelect, loading, curren
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
           <div style={{
             width: 32, height: 32, borderRadius: '8px',
-            background: 'linear-gradient(135deg, var(--primary), var(--accent-violet))',
+            background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <MessageCircle size={16} color="#fff" />
@@ -155,7 +155,7 @@ function ConversationList({ conversations, selectedId, onSelect, loading, curren
                 <div style={{
                   width: 42, height: 42, borderRadius: '50%',
                   background: isActive
-                    ? 'linear-gradient(135deg, var(--primary), var(--accent-violet))'
+                    ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
                     : 'linear-gradient(135deg, var(--bg-subtle), var(--border-card))',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0, fontSize: '1rem', fontWeight: 700,
@@ -245,7 +245,7 @@ function MessageBubble({ msg, isOwn }) {
       {!isOwn && (
         <div style={{
           width: 28, height: 28, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--accent-violet), var(--primary))',
+          background: 'linear-gradient(135deg, var(--accent-purple), var(--primary))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0, color: '#fff', fontSize: '0.7rem', fontWeight: 700
         }}>
@@ -263,7 +263,7 @@ function MessageBubble({ msg, isOwn }) {
           padding: '0.6rem 0.9rem',
           borderRadius: isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
           background: isOwn
-            ? 'linear-gradient(135deg, var(--primary), var(--accent-violet))'
+            ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
             : 'var(--bg-subtle)',
           border: isOwn ? 'none' : '1px solid var(--border-card)',
           color: isOwn ? '#fff' : 'var(--text-main)',
@@ -433,7 +433,7 @@ function ChatWindow({ conversation, currentUser, onBack }) {
         {/* Avatar */}
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--primary), var(--accent-violet))',
+          background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: '#fff', fontWeight: 700, fontSize: '1rem', flexShrink: 0
         }}>
@@ -482,7 +482,7 @@ function ChatWindow({ conversation, currentUser, onBack }) {
           <div style={{ textAlign: 'center', marginTop: '4rem', padding: '0 2rem' }}>
             <div style={{
               width: 64, height: 64, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary)20, var(--accent-violet)20)',
+              background: 'linear-gradient(135deg, var(--primary)20, var(--accent-purple)20)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 1rem'
             }}>
@@ -588,7 +588,7 @@ function ChatWindow({ conversation, currentUser, onBack }) {
               width: 44, height: 44,
               borderRadius: '50%',
               background: input.trim() && !sending && online
-                ? 'linear-gradient(135deg, var(--primary), var(--accent-violet))'
+                ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
                 : 'var(--border-card)',
               border: 'none',
               cursor: input.trim() && !sending && online ? 'pointer' : 'not-allowed',
@@ -661,7 +661,7 @@ export function ChatView() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <div style={{
             width: 38, height: 38, borderRadius: '10px',
-            background: 'linear-gradient(135deg, var(--primary), var(--accent-violet))',
+            background: 'linear-gradient(135deg, var(--primary), var(--accent-purple))',
             display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <MessageCircle size={18} color="#fff" />
@@ -717,7 +717,7 @@ export function ChatView() {
           }}>
             <div style={{
               width: 80, height: 80, borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--primary)15, var(--accent-violet)15)',
+              background: 'linear-gradient(135deg, var(--primary)15, var(--accent-purple)15)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               marginBottom: '1.25rem'
             }}>

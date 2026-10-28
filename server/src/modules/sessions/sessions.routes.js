@@ -3,12 +3,14 @@ import {
   createSession,
   getSessionsByMentorship,
   updateSessionNotes,
+  completeSessionByStudent,
   createMilestone,
   getMilestonesByMentorship,
   updateMilestoneStatus
 } from './sessions.controller.js';
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { validateBody } from '../../middleware/validation.middleware.js';
+import { authorize } from '../../middleware/role.middleware.js';
 import { uploadDocument } from '../../middleware/upload.middleware.js';
 
 const router = Router();
@@ -31,6 +33,7 @@ router.get('/mentorship/:mentorshipId', getSessionsByMentorship);
 
 // Session Update & Slot Finalization Routes
 router.patch('/sessions/:sessionId/notes', updateSessionNotes);
+router.patch('/sessions/:sessionId/complete', authorize('STUDENT'), completeSessionByStudent);
 router.patch('/sessions/:sessionId', updateSessionNotes);
 router.patch('/:sessionId/notes', updateSessionNotes);
 router.patch('/:sessionId', updateSessionNotes);

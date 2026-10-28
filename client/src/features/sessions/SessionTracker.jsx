@@ -9,6 +9,7 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeVirtualSession, setActiveVirtualSession] = useState(null);
+  const [completingSessionId, setCompletingSessionId] = useState(null);
 
   const fetchSessions = async () => {
     try {
@@ -38,6 +39,19 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
       fetchSessions();
     } catch (err) {
       showNotification(err.message, 'error');
+    }
+  };
+
+  const handleCompleteSession = async (sessionId) => {
+    setCompletingSessionId(sessionId);
+    try {
+      await apiClient(`/sessions/sessions/${sessionId}/complete`, { method: 'PATCH' });
+      showNotification('Session marked as completed. Your mentor has been notified.', 'success');
+      await fetchSessions();
+    } catch (err) {
+      showNotification(err.message, 'error');
+    } finally {
+      setCompletingSessionId(null);
     }
   };
 
@@ -71,6 +85,8 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {sessions.map(s => {
           const isPendingSelection = s.status === 'PENDING_SLOT_SELECTION';
+          const isCompleted = s.status === 'COMPLETED';
+          const canStudentComplete = !isMentor && ['CONFIRMED', 'SCHEDULED'].includes(s.status);
           const proposedSlots = s.proposed_slots || [s.scheduled_at];
 
           return (
@@ -80,8 +96,8 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
                   <p style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>{s.topic}</p>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Duration: {s.duration_mins} Minutes</p>
                 </div>
-                <span className={`badge ${isPendingSelection ? 'badge-amber' : 'badge-emerald'}`}>
-                  {isPendingSelection ? 'Slot Selection Pending' : 'Confirmed'}
+                <span className={`badge ${isPendingSelection ? 'badge-amber' : isCompleted ? 'badge-emerald' : 'badge-cyan'}`}>
+                  {isPendingSelection ? 'Slot Selection Pending' : isCompleted ? 'Completed' : s.status === 'SCHEDULED' ? 'Scheduled' : 'Confirmed'}
                 </span>
               </div>
 
@@ -114,20 +130,34 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
                 </div>
               ) : (
                 /* Confirmed Session Final Time & Native Embedded Video Meeting Button */
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-card)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-card)' }}>
                   <div>
                     <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                       <Clock size={14} /> Finalized Time: {new Date(s.scheduled_at).toLocaleString()}
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => setActiveVirtualSession(s)}
-                    className="btn btn-primary btn-sm"
-                    style={{ fontSize: '0.75rem' }}
-                  >
-                    <Video size={14} /> Launch In-App Video Call
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {canStudentComplete && (
+                      <button
+                        onClick={() => handleCompleteSession(s.id)}
+                        className="btn btn-secondary btn-sm"
+                        disabled={completingSessionId === s.id}
+                        style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', borderColor: 'var(--accent-emerald)' }}
+                      >
+                        <CheckCircle2 size={14} /> {completingSessionId === s.id ? 'Saving…' : 'Mark completed'}
+                      </button>
+                    )}
+                    {!isCompleted && (
+                      <button
+                        onClick={() => setActiveVirtualSession(s)}
+                        className="btn btn-primary btn-sm"
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        <Video size={14} /> Launch In-App Video Call
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
