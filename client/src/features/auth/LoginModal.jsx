@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { X, LogIn, Eye, EyeOff } from 'lucide-react';
+import { ForgotPasswordModal } from './ForgotPasswordModal';
 
 export const LoginModal = ({ isOpen, onClose }) => {
   const { login } = useAuth();
@@ -10,6 +11,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -40,6 +42,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
   };
 
   return (
+    <>
     <div
       className="modal-overlay"
       onClick={handleClose}
@@ -131,6 +134,20 @@ export const LoginModal = ({ isOpen, onClose }) => {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {/* Forgot password link */}
+            <div style={{ textAlign: 'right', marginTop: '0.45rem' }}>
+              <button
+                type="button"
+                onClick={() => setIsForgotOpen(true)}
+                style={{
+                  background: 'none', border: 'none', padding: 0,
+                  color: 'var(--primary)', fontSize: '0.8rem',
+                  cursor: 'pointer', fontWeight: 600
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }} disabled={loading}>
@@ -139,5 +156,13 @@ export const LoginModal = ({ isOpen, onClose }) => {
         </form>
       </div>
     </div>
+
+    {/* Forgot Password Modal */}
+    <ForgotPasswordModal
+      isOpen={isForgotOpen}
+      onClose={() => setIsForgotOpen(false)}
+      onBackToLogin={() => setIsForgotOpen(false)}
+    />
+  </>
   );
 };

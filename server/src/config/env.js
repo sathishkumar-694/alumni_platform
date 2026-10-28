@@ -10,6 +10,7 @@ export const config = {
   port: Number(cleanEnv(process.env.PORT, '5001')) || 5001,
   jwtSecret: cleanEnv(process.env.JWT_SECRET, 'campusbridge_super_secret_jwt_key_2026'),
   jwtExpiresIn: cleanEnv(process.env.JWT_EXPIRES_IN, '7d'),
+  frontendUrl: cleanEnv(process.env.FRONTEND_URL || process.env.RENDER_EXTERNAL_URL, 'http://localhost:5173'),
   mysql: {
     host: cleanEnv(process.env.DB_HOST, 'localhost'),
     user: cleanEnv(process.env.DB_USER, 'root'),
@@ -23,6 +24,10 @@ export const config = {
     apiKey: cleanEnv(process.env.CLOUDINARY_API_KEY, ''),
     apiSecret: cleanEnv(process.env.CLOUDINARY_API_SECRET, '')
   },
+  mail: {
+    from: (process.env.MAIL_FROM || 'CampusBridge <onboarding@resend.dev>').trim().replace(/^['"]|['"]$/g, '')
+  },
+  resendApiKey: cleanEnv(process.env.RESEND_API_KEY, 're_placeholder'),
   openaiApiKey: cleanEnv(process.env.OPENAI_API_KEY, ''),
   geminiApiKey: cleanEnv(process.env.GEMINI_API_KEY, ''),
   groqApiKey: cleanEnv(process.env.GROQ_API_KEY, '')

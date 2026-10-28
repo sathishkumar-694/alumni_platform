@@ -30,3 +30,21 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
     new ApiResponse(200, result, 'Current user fetched successfully')
   );
 });
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const result = await authService.forgotPassword(email);
+  return res.status(200).json(
+    new ApiResponse(200, result, result.message)
+  );
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+  const result = await authService.resetPassword(token, newPassword);
+  return res.status(200).json(
+    new ApiResponse(200, result, result.message)
+  );
+});

@@ -23,7 +23,11 @@ import {
   ChevronRight,
   User,
   Compass,
-  Search
+  Search,
+  Lock,
+  Eye,
+  EyeOff,
+  KeyRound
 } from 'lucide-react';
 
 export const AdminOperationsCenter = ({ activeSection }) => {
@@ -70,6 +74,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [editUser, setEditUser] = useState(null);
   const [selectedUserForDetails, setSelectedUserForDetails] = useState(null);
   const [activeVirtualSession, setActiveVirtualSession] = useState(null);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [editForm, setEditForm] = useState({
     maxCapacity: '5',
     verification_status: 'VERIFIED',
@@ -855,9 +860,21 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                             <button onClick={() => setSelectedUserForDetails(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
                               <FileText size={13} /> View Details
                             </button>
-                            <button onClick={() => setEditUser(u)} className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }}>
-                              <Edit size={13} /> Edit Account
-                            </button>
+                            <button
+                               onClick={() => {
+                                 setEditUser(u);
+                                 setShowNewPassword(false);
+                                 setEditForm({
+                                   verification_status: u.verification_status || "VERIFIED",
+                                   maxCapacity: String(u.profile?.max_capacity ?? u.profile?.maxCapacity ?? 5),
+                                   newPassword: ""
+                                 });
+                               }}
+                               className="btn btn-secondary btn-sm"
+                               style={{ fontSize: "0.75rem" }}
+                             >
+                               <Edit size={13} /> Edit Account
+                             </button>
                           </td>
                         </tr>
                       ))}
@@ -970,38 +987,139 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
       {/* Edit User Modal */}
       {editUser && (
-        <div className="modal-overlay" onClick={() => setEditUser(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1rem' }}>Edit Account: {editUser.name}</h3>
+        <div className="modal-overlay" onClick={() => { setEditUser(null); setShowNewPassword(false); }}>
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '480px', width: '94%' }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-card)' }}>
+              <div>
+                <span className="badge badge-purple" style={{ marginBottom: '0.35rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <ShieldCheck size={11} /> ADMIN OVERRIDE
+                </span>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>{editUser.name}</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.15rem 0 0' }}>{editUser.email} · <span className="badge badge-purple" style={{ fontSize: '0.65rem' }}>{editUser.role}</span></p>
+              </div>
+              <button onClick={() => { setEditUser(null); setShowNewPassword(false); }} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem' }}>
+                <X size={16} />
+              </button>
+            </div>
+
             <form onSubmit={handleUpdateUserByAdmin}>
-              <div style={{ marginBottom: '1rem' }}>
-                <label className="form-label">Verification Status</label>
+              {/* Verification Status */}
+              <div style={{ marginBottom: '1.1rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <UserCheck size={14} /> Verification Status
+                </label>
                 <select
                   className="form-input"
                   value={editForm.verification_status}
                   onChange={(e) => setEditForm({ ...editForm, verification_status: e.target.value })}
                 >
-                  <option value="VERIFIED">VERIFIED</option>
-                  <option value="PENDING">PENDING</option>
-                  <option value="REJECTED">REJECTED</option>
+                  <option value="VERIFIED">✅ VERIFIED</option>
+                  <option value="PENDING">⏳ PENDING</option>
+                  <option value="REJECTED">❌ REJECTED</option>
+                  <option value="SUSPENDED">🚫 SUSPENDED</option>
                 </select>
               </div>
 
+              {/* Mentee Capacity Override – Alumni only */}
               {editUser.role === 'ALUMNI' && (
-                <div style={{ marginBottom: '1rem' }}>
-                  <label className="form-label">Max Mentee Capacity Override</label>
+                <div style={{ marginBottom: '1.1rem' }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Users size={14} /> Max Mentee Capacity Override
+                  </label>
                   <input
                     type="number"
+                    min="1"
+                    max="50"
                     className="form-input"
                     value={editForm.maxCapacity}
                     onChange={(e) => setEditForm({ ...editForm, maxCapacity: e.target.value })}
                   />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>Current: {editUser.profile?.max_capacity ?? 5} mentees</p>
                 </div>
               )}
 
+              {/* ─── Password Reset Override ─── */}
+              <div style={{ marginBottom: '1.1rem' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <KeyRound size={14} /> Force Password Reset
+                </label>
+                <div
+                  style={{
+                    background: 'var(--bg-subtle)',
+                    border: '1px solid var(--border-card)',
+                    borderRadius: '12px',
+                    padding: '1rem'
+                  }}
+                >
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', lineHeight: 1.5 }}>
+                    Set a new password for this user. Leave blank to keep the current password unchanged.
+                  </p>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                      id="admin-new-password"
+                      type={showNewPassword ? 'text' : 'password'}
+                      className="form-input"
+                      placeholder="New password (min 6 characters)"
+                      value={editForm.newPassword}
+                      onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                      style={{ paddingLeft: '2.25rem', paddingRight: '2.75rem' }}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(v => !v)}
+                      style={{
+                        position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '0.2rem'
+                      }}
+                      title={showNewPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+
+                  {/* Password strength bar */}
+                  {editForm.newPassword.length > 0 && (() => {
+                    const len = editForm.newPassword.length;
+                    const hasUpper = /[A-Z]/.test(editForm.newPassword);
+                    const hasNum   = /[0-9]/.test(editForm.newPassword);
+                    const hasSpec  = /[^A-Za-z0-9]/.test(editForm.newPassword);
+                    const score = (len >= 8 ? 1 : 0) + (hasUpper ? 1 : 0) + (hasNum ? 1 : 0) + (hasSpec ? 1 : 0);
+                    const levels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+                    const colors = ['', '#ef4444', '#f59e0b', '#10b981', '#6366f1'];
+                    return (
+                      <div style={{ marginTop: '0.6rem' }}>
+                        <div style={{ display: 'flex', gap: '4px', marginBottom: '0.3rem' }}>
+                          {[1,2,3,4].map(i => (
+                            <div key={i} style={{
+                              flex: 1, height: '4px', borderRadius: '2px',
+                              background: i <= score ? colors[score] : 'var(--border-card)',
+                              transition: 'background 0.3s'
+                            }} />
+                          ))}
+                        </div>
+                        <p style={{ fontSize: '0.72rem', color: colors[score], fontWeight: 600 }}>
+                          {levels[score]} {score > 0 ? 'password' : ''}
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
-                <button type="button" onClick={() => setEditUser(null)} className="btn btn-secondary">Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Changes</button>
+                <button type="button" onClick={() => { setEditUser(null); setShowNewPassword(false); }} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Check size={15} /> Save Changes
+                </button>
               </div>
             </form>
           </div>

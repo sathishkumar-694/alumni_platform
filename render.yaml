@@ -26,5 +26,9 @@ services:
         value: "true"
       - key: JWT_SECRET
         value: campusbridge_super_secret_jwt_key_2026
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: GEMINI_API_KEY
         sync: false

@@ -12,6 +12,7 @@ import { LandingPage } from './features/landing/LandingPage';
 import { LoginModal } from './features/auth/LoginModal';
 import { StudentRegisterModal } from './features/auth/StudentRegisterModal';
 import { AlumniRegisterModal } from './features/auth/AlumniRegisterModal';
+import { ResetPasswordView } from './features/auth/ResetPasswordView';
 
 import { DomainExplorer } from './features/domains/DomainExplorer';
 import { AnnouncementFeed } from './features/announcements/AnnouncementFeed';
@@ -37,8 +38,20 @@ import { MilestonesView } from './features/milestones/MilestonesView';
 import useDocumentMeta from './shared/hooks/useDocumentMeta';
 import analytics from './shared/services/analytics';
 
+const getRouteFromHash = (hash) => {
+  const route = hash.replace(/^#/, '').split('?')[0];
+  return route || '';
+};
+
+const getResetTokenFromHash = () => {
+  if (typeof window === 'undefined') return '';
+  const hash = window.location.hash.replace(/^#/, '');
+  const queryStart = hash.indexOf('?');
+  return queryStart < 0 ? '' : new URLSearchParams(hash.slice(queryStart + 1)).get('token') || '';
+};
+
 const getInitialTab = () => {
-  const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+  const hash = typeof window !== 'undefined' ? getRouteFromHash(window.location.hash) : '';
   const token = typeof window !== 'undefined' ? localStorage.getItem('campusbridge_token') : null;
   if (hash) return hash;
   if (token) return 'dashboard';
@@ -46,7 +59,7 @@ const getInitialTab = () => {
 };
 
 const knownTabs = [
-  'home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404',
+  'home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404', 'reset-password',
   'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile', 'chat', 'milestones',
   'resume_analyzer', 'recommended_mentors', 'referrals',
   'admin_operations', 'admin_analytics', 'admin_verifications', 'admin_matrix', 'admin_requests', 'admin_users', 'admin_domains'
@@ -85,7 +98,7 @@ const MainContent = () => {
   // Hash change synchronization listener
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
+      const hash = getRouteFromHash(window.location.hash);
       if (hash && hash !== activeTab) {
         setActiveTabState(hash);
       }
@@ -106,12 +119,13 @@ const MainContent = () => {
   useEffect(() => {
     if (!user) {
       // If visitor is logged out and on a protected tab (like dashboard, profile, requests), force 'home'
-      const publicTabs = ['home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404'];
+      const publicTabs = ['home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404', 'reset-password'];
       if (!publicTabs.includes(activeTab)) {
         setActiveTabState('home');
         if (typeof window !== 'undefined') window.location.hash = 'home';
       }
     } else {
+      if (activeTab === 'reset-password') return;
       const saved = localStorage.getItem('campusbridge_active_tab');
       if (saved && saved !== 'home') {
         setActiveTabState(saved);
@@ -152,6 +166,17 @@ const MainContent = () => {
           <main style={{ flex: 1, paddingBottom: '3rem' }}>
             
             {/* Public Landing View */}
+            {activeTab === 'reset-password' && (
+              <ResetPasswordView
+                token={getResetTokenFromHash()}
+                onSuccess={() => {
+                  logout?.();
+                  handleSetActiveTab('home');
+                  setIsLoginOpen(true);
+                }}
+              />
+            )}
+
             {activeTab === 'home' && (
               <LandingPage
                 onOpenLogin={() => setIsLoginOpen(true)}
