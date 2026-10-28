@@ -11,20 +11,30 @@ cloudinary.config({
 });
 
 export const uploadToCloudinary = async (filePath, folder = 'campusbridge_uploads') => {
+  // Accept either a folder name (e.g. "resumes") or a full existing
+  // Cloudinary path (e.g. "campusbridge/resumes") without duplicating root.
+  const normalizedFolder = String(folder || 'campusbridge_uploads')
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/^campusbridge\/+/, '');
   try {
     if (!config.cloudinary.cloudName || !config.cloudinary.apiKey || !config.cloudinary.apiSecret) {
-      console.warn('[Cloudinary Warning] Credentials missing in .env. Falling back to local upload directory.');
+      console.warn('[Cloudinary Warning] CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET is missing. Upload stored locally instead.');
       return `/uploads/${path.basename(filePath)}`;
     }
 
     const result = await cloudinary.uploader.upload(filePath, {
-      folder: `campusbridge/${folder}`,
+      folder: `campusbridge/${normalizedFolder}`,
       resource_type: 'auto'
     });
 
     return result.secure_url;
   } catch (error) {
-    console.warn(`[Cloudinary Fallback] Could not upload to Cloudinary (${error.message}). Returning local storage path.`);
+    console.error('[Cloudinary Upload Failed]', {
+      message: error.message,
+      http_code: error.http_code,
+      name: error.name,
+      folder: normalizedFolder
+    });
     return `/uploads/${path.basename(filePath)}`;
   }
 };
@@ -85,8 +95,8 @@ export const uploadResumeBackup = async ({
 
     const localUrl = `/uploads/resumes/${localFileName}`;
     return {
-      url: localUrl,
-      provider: cloudinaryUrl ? 'Local download with Cloudinary backup' : 'Local Disk Backup (/uploads/resumes)',
+      url: cloudinaryUrl || localUrl,
+      provider: cloudinaryUrl ? 'Cloudinary Cloud Storage' : 'Local Disk Backup (/uploads/resumes)',
       cloudinary_url: cloudinaryUrl,
       local_path: localFilePath,
       backed_up_at: new Date().toISOString()

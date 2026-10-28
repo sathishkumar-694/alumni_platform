@@ -1,7 +1,6 @@
 import { sessionsRepository } from './sessions.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
 import { uploadToCloud } from '../../config/cloudinary.js';
-import path from 'path';
 import { notificationsService } from '../notifications/notifications.service.js';
 
 export class SessionsService {
@@ -133,11 +132,7 @@ export class SessionsService {
 
     let finalResourceUrl = resourceUrl || '';
     if (file) {
-      // Multer already keeps the uploaded file in server/uploads and Express
-      // serves that directory. Use this URL for PDFs because Cloudinary may
-      // block PDF delivery even when its upload succeeds.
-      await uploadToCloud(file.path, 'milestone_materials');
-      finalResourceUrl = `/uploads/${path.basename(file.path)}`;
+      finalResourceUrl = await uploadToCloud(file.path, 'milestone_materials');
     }
 
     const milestone = await sessionsRepository.createMilestone({

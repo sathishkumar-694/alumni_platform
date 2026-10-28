@@ -74,7 +74,7 @@ export class ReferralsService {
       throw new ApiError(403, 'Only verified students can submit referral applications');
     }
     if (!resumeFile) throw new ApiError(400, 'A resume file is required');
-    const resumeUrl = `/uploads/${resumeFile.filename}`;
+    const resumeUrl = await uploadToCloud(resumeFile.path, 'resumes');
 
     const allApps = await referralsRepository.findAllApplications();
     const existing = allApps.find(a => String(a.job_id) === String(jobId) && String(a.student_id) === String(studentUser.id));

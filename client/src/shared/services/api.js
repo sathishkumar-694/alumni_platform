@@ -105,6 +105,13 @@ export const getAssetUrl = (pathStr) => {
   if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
     return pathStr;
   }
+  // Support legacy database rows that contain a Cloudinary public ID instead
+  // of the full secure_url. New uploads persist the secure_url directly.
+  const cloudinaryPublicId = pathStr.replace(/^\/+/, '');
+  if (/^campusbridge\/(alumni_ids|student_ids|job_descriptions|milestone_materials|resumes|study_resources|announcements)\//i.test(cloudinaryPublicId)) {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dfutwx64f';
+    return `https://res.cloudinary.com/${cloudName}/image/upload/${cloudinaryPublicId}`;
+  }
   const origin = getApiOrigin();
   const cleanPath = pathStr.startsWith('/') ? pathStr : `/${pathStr}`;
   return `${origin}${cleanPath}`;

@@ -18,7 +18,8 @@ export const errorMiddleware = (err, req, res, next) => {
     success: false,
     message: error.message,
     errors: error.errors,
-    stack: error.stack
+    request: { method: req.method, path: req.originalUrl },
+    ...(process.env.NODE_ENV === 'production' ? {} : { stack: error.stack })
   };
 
   return res.status(error.statusCode).json(response);
