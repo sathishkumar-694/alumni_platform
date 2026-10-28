@@ -369,11 +369,17 @@ export const JobReferralPortal = () => {
                 <strong style={{ color: 'var(--text-main)' }}>{applicant.student_name}</strong>
                 <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0' }}>{applicant.student_email}</p>
                 {applicant.resume_url && <a href={getAssetUrl(applicant.resume_url)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', margin: '0.25rem 0' }}><Download size={14} /> View {applicant.resume_name || 'Resume'}</a>}
-                <span className="badge badge-cyan">{applicant.status}</span>
+                <span className={`badge ${applicant.status === 'APPROVED' ? 'badge-emerald' : applicant.status === 'REJECTED' ? 'badge-rose' : 'badge-cyan'}`}>
+                  {applicant.status || 'PENDING'}
+                </span>
                 {applicant.status === 'PENDING' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem' }}>
-                    <button type="button" className="btn btn-primary btn-sm" disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'APPROVED')}>Approve</button>
-                    <button type="button" className="btn btn-secondary btn-sm" disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'REJECTED')}>Reject</button>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem', width: '100%' }}>
+                    <button type="button" className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: 'center' }} disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'APPROVED')}>
+                      {updatingApplicationId === applicant.id ? 'Saving…' : 'Accept referral'}
+                    </button>
+                    <button type="button" className="btn btn-secondary btn-sm" style={{ flex: 1, justifyContent: 'center' }} disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'REJECTED')}>
+                      {updatingApplicationId === applicant.id ? 'Saving…' : 'Reject referral'}
+                    </button>
                   </div>
                 )}
               </div>

@@ -98,10 +98,9 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
 };
 
 /* ─── Single milestone card (mentor view) ─── */
-const MentorMilestoneCard = ({ milestone, onUploadMaterial, onMarkVerified }) => {
+const MentorMilestoneCard = ({ milestone, onMarkVerified }) => {
   const isCompleted = milestone.status === 'COMPLETED';
   const isVerified = milestone.status === 'VERIFIED';
-  const hasNoMaterial = !milestone.resource_url;
 
   return (
     <div style={{
@@ -141,7 +140,7 @@ const MentorMilestoneCard = ({ milestone, onUploadMaterial, onMarkVerified }) =>
 
         {/* Right side actions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
-          {/* Upload next material — show when student has completed */}
+          {/* Verification is the only action on an existing completed milestone. */}
           {isCompleted && !isVerified && (
             <button
               onClick={() => onMarkVerified(milestone.id)}
@@ -322,22 +321,6 @@ export function MilestonesView() {
     }
   };
 
-  /* Mentor: upload next material for a completed milestone */
-  const handleUploadMaterial = async (milestoneId, file, mentorshipId, milestoneTitle) => {
-    try {
-      const form = new FormData();
-      form.append('mentorshipId', mentorshipId);
-      form.append('title', milestoneTitle + ' – Additional Material');
-      form.append('description', 'Next study material uploaded by mentor.');
-      form.append('resourceFile', file);
-      await apiClient('/sessions/milestones', { method: 'POST', body: form });
-      showToast('📤 Material uploaded! Student has been notified.');
-      loadMilestones(selectedMentorship.id);
-    } catch (e) {
-      showToast('Upload failed: ' + e.message, 'error');
-    }
-  };
-
   /* Mentor: mark a completed milestone as verified */
   const handleMarkVerified = async (milestoneId) => {
     try {
@@ -489,7 +472,6 @@ export function MilestonesView() {
                     <StudentMilestoneCard key={m.id} milestone={m} onMarkComplete={handleMarkComplete} />
                   ) : (
                     <MentorMilestoneCard key={m.id} milestone={m}
-                      onUploadMaterial={handleUploadMaterial}
                       onMarkVerified={handleMarkVerified} />
                   )
                 )}
