@@ -32,6 +32,7 @@ import { TermsAndConditionsView } from './features/legal/TermsAndConditionsView'
 import { ThankYouView } from './features/common/ThankYouView';
 import { NotFoundView } from './features/common/NotFoundView';
 import { ChatView } from './features/chat/ChatView';
+import { MilestonesView } from './features/milestones/MilestonesView';
 
 import useDocumentMeta from './shared/hooks/useDocumentMeta';
 import analytics from './shared/services/analytics';
@@ -46,7 +47,7 @@ const getInitialTab = () => {
 
 const knownTabs = [
   'home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404',
-  'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile', 'chat',
+  'dashboard', 'active_mentorships', 'requests', 'sessions', 'profile', 'chat', 'milestones',
   'resume_analyzer', 'recommended_mentors', 'referrals',
   'admin_operations', 'admin_analytics', 'admin_verifications', 'admin_matrix', 'admin_requests', 'admin_users', 'admin_domains'
 ];
@@ -219,6 +220,9 @@ const MainContent = () => {
 
             {/* Private Mentorship Chat */}
             {user && activeTab === 'chat' && <ChatView />}
+
+            {/* Milestones — separate tab for students & mentors */}
+            {user && user.role !== 'ADMIN' && activeTab === 'milestones' && <MilestonesView />}
 
             {/* Admin Operations Center Dedicated Tabs */}
             {user && (

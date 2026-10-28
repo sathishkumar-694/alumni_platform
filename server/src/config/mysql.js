@@ -56,6 +56,7 @@ const inMemoryStore = {
 };
 
 let isUseInMemoryFallback = false;
+const allowInMemoryFallback = process.env.NODE_ENV !== 'production' && process.env.USE_IN_MEMORY_DB === 'true';
 
 const runInMemoryQuery = (sql, params = []) => {
   const cleanSql = sql.trim();
@@ -149,12 +150,24 @@ export const queryMySQL = async (sql, params = []) => {
 
   try {
     const connectionPool = getMySQLPool();
-    const [rows] = await connectionPool.execute(sql, params);
+    // Sanitize params: replace undefined with null to avoid mysqld_stmt_execute errors
+    const safeParams = Array.isArray(params)
+      ? params.map(p => (p === undefined ? null : p))
+      : [];
+    const [rows] = await connectionPool.execute(sql, safeParams);
     return rows;
   } catch (error) {
-    console.warn('[MySQL Warning] Execute query failed:', error.message, '-> Switching to resilient mock DB engine');
-    isUseInMemoryFallback = true;
-    return runInMemoryQuery(sql, params);
+    console.error('[MySQL ERROR] Query failed:', error.message);
+    console.error('[MySQL ERROR] SQL:', sql.trim().replace(/\s+/g, ' ').slice(0, 500));
+    console.error('[MySQL ERROR] Parameter count:', Array.isArray(params) ? params.length : 'not an array');
+
+    if (allowInMemoryFallback) {
+      console.warn('[MySQL Warning] USE_IN_MEMORY_DB=true; switching to development mock data.');
+      isUseInMemoryFallback = true;
+      return runInMemoryQuery(sql, params);
+    }
+
+    throw error;
   }
 };
 

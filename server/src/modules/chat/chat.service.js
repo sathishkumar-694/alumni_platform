@@ -104,15 +104,19 @@ export const chatService = {
   async getMessages(user, mentorshipId, page = 1, limit = 50) {
     await this._assertAccess(user.id, mentorshipId);
 
-    const offset = (page - 1) * limit;
+    // mysql2's prepared-statement protocol can reject placeholders in LIMIT/OFFSET
+    // with some MySQL-compatible hosts. Keep the values numeric before embedding.
+    const safePage = Number.isSafeInteger(Number(page)) ? Math.max(1, Number(page)) : 1;
+    const safeLimit = Number.isSafeInteger(Number(limit)) ? Math.min(100, Math.max(1, Number(limit))) : 50;
+    const offset = (safePage - 1) * safeLimit;
     const messages = await queryMySQL(
       `SELECT cm.*, u.name AS sender_name, u.role AS sender_role
        FROM \`chat_messages\` cm
        JOIN \`users\` u ON u.id = cm.sender_id
        WHERE cm.mentorship_id = ?
        ORDER BY cm.created_at DESC
-       LIMIT ? OFFSET ?`,
-      [mentorshipId, limit, offset]
+       LIMIT ${safeLimit} OFFSET ${offset}`,
+      [mentorshipId]
     );
 
     const [{ total }] = await queryMySQL(
@@ -123,7 +127,7 @@ export const chatService = {
     // Return oldest-first for the UI
     return {
       messages: messages.reverse(),
-      pagination: { page, limit, total: Number(total), pages: Math.ceil(Number(total) / limit) }
+      pagination: { page: safePage, limit: safeLimit, total: Number(total), pages: Math.ceil(Number(total) / safeLimit) }
     };
   },
 

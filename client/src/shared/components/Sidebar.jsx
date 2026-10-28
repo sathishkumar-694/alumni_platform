@@ -266,6 +266,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
                 )}
                 {renderNavItem('sessions', '1-on-1 Virtual Sessions', Video)}
                 {!isAdmin && renderNavItem('chat', 'Private Mentorship Chat', MessageCircle)}
+                {!isAdmin && renderNavItem('milestones', 'Milestones & Progress', BookOpen)}
                 {renderNavItem('referrals', 'Job Referrals', Briefcase)}
               </div>
             )}

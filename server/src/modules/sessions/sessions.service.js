@@ -124,7 +124,7 @@ export class SessionsService {
       type: 'MILESTONE_ASSIGNED',
       title: '🎯 New Milestone Assigned',
       desc: `Milestone "${title}" has been assigned for your mentorship roadmap.`,
-      target_tab: 'requests'
+      target_tab: 'milestones'
     }).catch(() => {});
 
     // Notify mentor
@@ -133,7 +133,7 @@ export class SessionsService {
       type: 'MILESTONE_CREATED',
       title: '🎯 Milestone Added',
       desc: `Milestone "${title}" has been recorded for your mentee.`,
-      target_tab: 'requests'
+      target_tab: 'milestones'
     }).catch(() => {});
 
     return milestone;
@@ -149,25 +149,42 @@ export class SessionsService {
       throw new ApiError(404, 'Milestone not found');
     }
 
+    const validStatuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'VERIFIED'];
+    if (!validStatuses.includes(status)) {
+      throw new ApiError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
     const updated = await sessionsRepository.updateMilestone(milestoneId, { status });
 
-    if (status === 'COMPLETED') {
-      const mentorship = await sessionsRepository.findActiveMentorshipById(milestone.mentorship_id);
-      if (mentorship) {
-        await notificationsService.createNotification({
-          user_id: mentorship.student_id,
-          type: 'MILESTONE_COMPLETED',
-          title: '🏆 Milestone Completed!',
-          desc: `Milestone "${milestone.title}" has been completed!`,
-          target_tab: 'requests'
-        }).catch(() => {});
-
+    const mentorship = await sessionsRepository.findActiveMentorshipById(milestone.mentorship_id);
+    if (mentorship) {
+      if (status === 'COMPLETED') {
+        // Student marked as studied — notify mentor to review
         await notificationsService.createNotification({
           user_id: mentorship.mentor_id,
           type: 'MILESTONE_COMPLETED',
-          title: '🏆 Mentee Milestone Completed',
-          desc: `Milestone "${milestone.title}" was marked as completed!`,
-          target_tab: 'requests'
+          title: '🏆 Mentee Studied a Milestone!',
+          desc: `"${milestone.title}" was marked as studied. Please verify and upload next material.`,
+          target_tab: 'milestones'
+        }).catch(() => {});
+
+        await notificationsService.createNotification({
+          user_id: mentorship.student_id,
+          type: 'MILESTONE_COMPLETED',
+          title: '✅ Milestone Marked as Studied',
+          desc: `You marked "${milestone.title}" as studied. Your mentor has been notified.`,
+          target_tab: 'milestones'
+        }).catch(() => {});
+      }
+
+      if (status === 'VERIFIED') {
+        // Mentor verified — notify student
+        await notificationsService.createNotification({
+          user_id: mentorship.student_id,
+          type: 'MILESTONE_VERIFIED',
+          title: '🏅 Milestone Verified by Mentor!',
+          desc: `Your mentor verified "${milestone.title}". Keep up the great work!`,
+          target_tab: 'milestones'
         }).catch(() => {});
       }
     }
