@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
@@ -7,19 +7,16 @@ import { SessionTracker } from '../sessions/SessionTracker';
 import { SessionSchedulerModal } from '../sessions/SessionSchedulerModal';
 import {
   Users,
-  Award,
   CheckCircle2,
   Clock,
   MessageSquare,
   Check,
   X,
   Calendar,
-  ShieldCheck,
   FileText,
   ChevronDown,
   ChevronUp,
-  Briefcase,
-  Building
+  Briefcase
 } from 'lucide-react';
 
 export const MentorDashboard = ({ activeSection = 'dashboard' }) => {

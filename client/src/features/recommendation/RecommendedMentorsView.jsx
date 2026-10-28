@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { RecommendedMentorsGrid } from './RecommendedMentorsGrid';
 import { RequestMentorshipModal } from '../mentorship/RequestMentorshipModal';
-import { Sparkles, Award, Users, Compass, Search, X } from 'lucide-react';
+import { Sparkles, Award, Search, X } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 
 export const RecommendedMentorsView = ({ onRequestMentorship, searchQuery = '' }) => {

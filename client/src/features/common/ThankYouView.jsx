@@ -1,4 +1,3 @@
-import React from 'react';
 
 export const ThankYouView = ({
   title = "Submission Received Successfully!",

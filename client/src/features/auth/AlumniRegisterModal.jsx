@@ -98,6 +98,7 @@ export const AlumniRegisterModal = ({ isOpen, onClose }) => {
   // Quiz score
   const quizScore = EXPERTISE_QUESTIONS.reduce((acc, q, idx) => {
     const ans = quizAnswers[q.id];
+    console.log(idx)
     return acc + (ans !== undefined ? q.weight[ans] : 0);
   }, 0);
   const maxScore = EXPERTISE_QUESTIONS.reduce((acc, q) => acc + Math.max(...q.weight), 0);

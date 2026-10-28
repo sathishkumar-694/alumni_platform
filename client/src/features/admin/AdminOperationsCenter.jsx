@@ -1,34 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { VirtualMeetingModal } from '../sessions/VirtualMeetingModal';
 import {
   ShieldCheck,
   Users,
   Award,
-  TrendingUp,
-  Clock,
   Check,
   X,
   FileText,
   UserCheck,
-  UserX,
   Edit,
   RefreshCw,
   Plus,
-  BarChart2,
   BookOpen,
-  Video,
   ExternalLink,
-  ChevronRight,
-  User,
   Compass,
   Search,
   Lock,
   Eye,
   EyeOff,
-  KeyRound,
-  Trash2
+  KeyRound
 } from 'lucide-react';
 
 export const AdminOperationsCenter = ({ activeSection }) => {
@@ -45,13 +36,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     return 'dashboard';
   };
 
-  const [activeTab, setActiveTab] = useState(() => getTabForSection(activeSection));
-
-  useEffect(() => {
-    if (activeSection) {
-      setActiveTab(getTabForSection(activeSection));
-    }
-  }, [activeSection]);
+  const activeTab = getTabForSection(activeSection);
 
   const [loading, setLoading] = useState(true);
 
@@ -62,19 +47,15 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [matrix, setMatrix] = useState([]);
   const [domains, setDomains] = useState([]);
   const [pendingDomainRequests, setPendingDomainRequests] = useState([]);
-  const [allSessions, setAllSessions] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [reassignRequestsList, setReassignRequestsList] = useState([]);
-  const [reassignReviewModal, setReassignReviewModal] = useState(null); // { request, action }
-  const [reassignNewMentor, setReassignNewMentor] = useState('');
-  const [reassignAdminNote, setReassignAdminNote] = useState('');
+  const [, setReassignReviewModal] = useState(null);
+  const [, setReassignNewMentor] = useState('');
+  const [, setReassignAdminNote] = useState('');
 
   // Modals & Drawers
-  const [previewUser, setPreviewUser] = useState(null);
-  const [analysisUser, setAnalysisUser] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [selectedUserForDetails, setSelectedUserForDetails] = useState(null);
-  const [activeVirtualSession, setActiveVirtualSession] = useState(null);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [editForm, setEditForm] = useState({
     maxCapacity: '5',
@@ -105,7 +86,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [userSearch, setUserSearch] = useState('');
   const [domainSearch, setDomainSearch] = useState('');
 
-  const fetchDomainRequests = async () => {
+  const fetchDomainRequests = useCallback(async () => {
     try {
       const res = await apiClient('/domains/requests/pending');
       const uniqueDomainReqs = [];
@@ -120,10 +101,9 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     } catch (err) {
       console.warn('Pending domain requests error:', err.message);
     }
-  };
+  }, []);
 
-  const fetchOperationsData = async () => {
-    setLoading(true);
+  const fetchOperationsData = useCallback(async () => {
     try {
       const [analyticsRes, pendingRes, usersRes, matrixRes, requestsRes, domainsRes, reassignRes] = await Promise.all([
         apiClient('/analytics/overview').catch(() => ({ data: null })),
@@ -198,34 +178,21 @@ export const AdminOperationsCenter = ({ activeSection }) => {
 
       await fetchDomainRequests();
 
-      const activeMentorships = uniqueMatrix.filter(m => m.status === 'ACTIVE');
-      let combinedSessions = [];
-      for (const m of activeMentorships) {
-        try {
-          const sessRes = await apiClient(`/sessions/sessions/mentorship/${m.id}`);
-          const sList = (sessRes.data || []).map(s => ({
-            ...s,
-            student_name: m.student_name,
-            mentor_name: m.mentor_name,
-            domain_name: m.domain_name
-          }));
-          combinedSessions = [...combinedSessions, ...sList];
-        } catch (e) {
-          // ignore individual session errors
-        }
-      }
-      setAllSessions(combinedSessions);
-
     } catch (err) {
       console.error('Failed to load admin operations data:', err);
     } finally {
       setLoading(false);
     }
+  }, [fetchDomainRequests]);
+
+  const refreshOperationsData = () => {
+    setLoading(true);
+    fetchOperationsData();
   };
 
   useEffect(() => {
-    fetchOperationsData();
-  }, []);
+    void Promise.resolve().then(fetchOperationsData);
+  }, [fetchOperationsData]);
 
   const handleVerifyUser = async (userId, action, reason = '') => {
     try {
@@ -236,7 +203,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       showNotification(`Verification status ${action === 'APPROVE' ? 'APPROVED' : 'REJECTED'}`, 'success');
       setRejectionModal(null);
       setRejectionReasonText('');
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -257,7 +224,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       });
       showNotification(`Updated ${editUser.name}'s profile parameters`, 'success');
       setEditUser(null);
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -279,7 +246,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       setReassignMentorship(null);
       setNewMentorId('');
       setReassignReason('');
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -289,7 +256,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
     try {
       await apiClient(`/domains/requests/${requestId}/approve`, { method: 'PATCH' });
       showNotification('Technical domain request approved and created!', 'success');
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -304,7 +271,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       showNotification('Domain request rejected', 'info');
       setRejectionModal(null);
       setRejectionReasonText('');
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -320,7 +287,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
       showNotification(`Domain '${domainForm.name}' created successfully`, 'success');
       setShowDomainModal(false);
       setDomainForm({ name: '', category: 'Core Engineering', description: '', icon: 'Code' });
-      fetchOperationsData();
+      refreshOperationsData();
     } catch (err) {
       showNotification(err.message, 'error');
     }
@@ -429,7 +396,7 @@ export const AdminOperationsCenter = ({ activeSection }) => {
           </p>
         </div>
 
-        <button onClick={fetchOperationsData} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+        <button onClick={refreshOperationsData} className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
           <RefreshCw size={14} /> Refresh Data
         </button>
       </div>

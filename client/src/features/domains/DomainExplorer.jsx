@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
@@ -19,25 +19,18 @@ import {
   User,
   Award,
   CheckCircle2,
-  BookmarkCheck,
   Send,
   X,
   ChevronRight,
   AlertTriangle,
-  Sparkles,
   Compass,
-  Check,
   Trash2,
   ArrowLeft,
-  FileText,
   Download,
   BookOpen,
-  Briefcase,
   Building,
-  Clock,
   ExternalLink,
   RefreshCw,
-  Star,
   Search
 } from 'lucide-react';
 

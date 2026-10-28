@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
@@ -6,30 +6,17 @@ import { useBatchOnlineStatus } from '../../shared/hooks/usePresence';
 import { MilestoneTracker } from '../sessions/MilestoneTracker';
 import { SessionTracker } from '../sessions/SessionTracker';
 import { SessionSchedulerModal } from '../sessions/SessionSchedulerModal';
-import { RecommendedMentorsGrid } from '../recommendation/RecommendedMentorsGrid';
 import { RequestMentorshipModal } from '../mentorship/RequestMentorshipModal';
 import {
-  Sparkles,
   Users,
-  Award,
-  BookOpen,
   Calendar,
-  CheckCircle,
-  Clock,
   ArrowRight,
-  ShieldCheck,
   FileText,
-  ChevronDown,
-  ChevronUp,
   MessageSquare,
-  Plus,
-  Filter,
   Compass,
   Code,
   AlertTriangle,
-  X,
-  Wifi,
-  WifiOff
+  X
 } from 'lucide-react';
 
 /* ── Online Status Dot ── */

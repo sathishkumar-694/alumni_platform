@@ -1,21 +1,9 @@
-import React from 'react';
 import {
-  GraduationCap,
   Sparkles,
   ShieldCheck,
-  Users,
-  Award,
-  BookOpen,
   ArrowRight,
-  CheckCircle2,
-  Calendar,
-  Target,
   Compass,
-  Briefcase,
-  Star,
-  Zap,
-  TrendingUp,
-  MessageSquare
+  Star
 } from 'lucide-react';
 
 export const LandingPage = ({ onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni, onExploreDomains }) => {

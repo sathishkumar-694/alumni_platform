@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
@@ -11,8 +11,6 @@ import {
   Upload,
   X,
   Paperclip,
-  FolderArchive,
-  File,
   Search
 } from 'lucide-react';
 

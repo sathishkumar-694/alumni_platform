@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, Compass, Send, Sparkles } from 'lucide-react';
+import { X, Compass, Send } from 'lucide-react';
 
 export const RequestDomainModal = ({ isOpen, onClose, onSuccess }) => {
   const { showNotification } = useNotification();

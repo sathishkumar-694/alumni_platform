@@ -73,7 +73,10 @@ export const JobReferralPortal = () => {
     if (appliedJobIds.includes(job.id)) return;
     const resume = resumeFiles[job.id];
     if (!resume) {
-      showNotification('Upload your resume before applying.', 'error');
+      // Keep the request action as the entry point to the application form.
+      // This also makes older cached UI handlers open the form instead of
+      // showing a blocking validation toast.
+      setApplicationJob(job);
       return;
     }
     try {
@@ -340,7 +343,7 @@ export const JobReferralPortal = () => {
                 <div style={{ paddingTop: '0.85rem', borderTop: '1px solid var(--border-card)' }}>
                   {user?.role === 'STUDENT' ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <button onClick={() => setApplicationJob(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
+                      <button type="button" onClick={() => setApplicationJob(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
                         {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Request Internal Referral</>}
                       </button>
                     </div>

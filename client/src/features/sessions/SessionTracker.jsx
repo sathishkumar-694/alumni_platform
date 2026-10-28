@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { VirtualMeetingModal } from './VirtualMeetingModal';
-import { Calendar, Video, Clock, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Calendar, Video, Clock, CheckCircle2 } from 'lucide-react';
 
 export const SessionTracker = ({ mentorshipId, isMentor }) => {
   const { showNotification } = useNotification();

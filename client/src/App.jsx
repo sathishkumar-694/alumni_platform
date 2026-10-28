@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './shared/context/AuthContext';
 import { NotificationProvider } from './shared/context/NotificationContext';
 
 import { Sidebar } from './shared/components/Sidebar';
 import { TopHeader } from './shared/components/TopHeader';
 import { VerificationBanner } from './shared/components/VerificationBanner';
-import { StickyMobileCTA } from './shared/components/StickyMobileCTA';
 import { CookieConsentBanner } from './shared/components/CookieConsentBanner';
 
 import { LandingPage } from './features/landing/LandingPage';

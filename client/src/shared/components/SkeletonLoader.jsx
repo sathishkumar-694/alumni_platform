@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * Reusable Skeleton Loader Component (Item 12)

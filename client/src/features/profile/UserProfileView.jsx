@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { getAssetUrl } from '../../shared/services/api';
-import { User, ShieldCheck, FileText, Mail, GraduationCap, Award, Briefcase, Calendar, CheckCircle2 } from 'lucide-react';
+import { User, ShieldCheck, FileText, Mail, CheckCircle2 } from 'lucide-react';
 
 export const UserProfileView = () => {
   const { user } = useAuth();

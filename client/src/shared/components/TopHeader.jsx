@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from '../services/api';
-import { Search, Bell, Sun, Moon, ChevronDown, LogOut, User, Sparkles, Check, ArrowRight, MessageSquare, Calendar, Briefcase, ShieldCheck } from 'lucide-react';
+import { Bell, Sun, Moon, ChevronDown, LogOut, User } from 'lucide-react';
 
 export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni, searchQuery = '', onSearchChange, activeTab }) => {
   const { user, logout } = useAuth();

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, Sparkles, FileText, CheckCircle2, AlertTriangle, ArrowRight, UserPlus, Award, Link, Zap, Upload, File, Check, Loader2 } from 'lucide-react';
+import { X, Sparkles, FileText, CheckCircle2, AlertTriangle, UserPlus, Award, Zap, Upload, Loader2 } from 'lucide-react';
 
 export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) => {
   const { user } = useAuth();

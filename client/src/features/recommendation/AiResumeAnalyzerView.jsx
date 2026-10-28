@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
@@ -9,31 +9,21 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
-  ArrowRight,
   UserCheck,
   Award,
   Zap,
   RefreshCw,
-  File,
   Globe,
-  Building,
   Check,
   Loader2,
-  ChevronRight,
-  Compass,
   Target,
-  Info,
   Cloud,
   Clock,
-  ExternalLink,
-  ShieldCheck,
   History,
   TrendingUp,
   BarChart3,
   Trash2,
-  Calendar,
-  CheckCircle,
-  HelpCircle
+  Calendar
 } from 'lucide-react';
 
 export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {

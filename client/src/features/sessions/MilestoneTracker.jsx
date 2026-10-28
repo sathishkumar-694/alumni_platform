@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { CheckCircle2, Clock, Plus, Target, Paperclip, Upload, X, FileText, Download, ExternalLink } from 'lucide-react';
+import { CheckCircle2, Clock, Plus, Target, Paperclip, Upload, X, FileText } from 'lucide-react';
 
 export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const { showNotification } = useNotification();

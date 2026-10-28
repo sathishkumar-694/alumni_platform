@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { Sparkles, Briefcase, Award, CheckCircle, Send, Linkedin, BookOpen, Clock } from 'lucide-react';
+import { Sparkles, Briefcase, Send, Clock } from 'lucide-react';
 
 export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false, searchQuery = '' }) => {
   const { user } = useAuth();

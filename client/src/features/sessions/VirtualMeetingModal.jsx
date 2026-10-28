@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   Video,
@@ -6,17 +6,13 @@ import {
   Mic,
   MicOff,
   Share2,
-  Copy,
   Maximize2,
   ShieldCheck,
   Code,
   PenTool,
   MessageSquare,
   Play,
-  RotateCcw,
-  Sparkles,
-  Users,
-  Check
+  RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
-import { X, Calendar, Clock, Video, CheckCircle2, Sparkles, RefreshCw, ExternalLink } from 'lucide-react';
+import { X, Calendar, Clock, Sparkles, RefreshCw } from 'lucide-react';
 
 export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess }) => {
   const { showNotification } = useNotification();

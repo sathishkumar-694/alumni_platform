@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
 import { useNotification } from '../../shared/context/NotificationContext';
 import { X, Send, Lock } from 'lucide-react';

@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../shared/context/AuthContext';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import {
-  CheckCircle2, Upload, BookOpen, AlertCircle, Clock, Trophy,
-  ChevronDown, ChevronUp, RefreshCw, FileText, X, Loader2
+  CheckCircle2, BookOpen, AlertCircle, Clock, Trophy, ChevronUp, RefreshCw, FileText, X, Loader2
 } from 'lucide-react';
 
 /* ─── Status badge helper ─── */

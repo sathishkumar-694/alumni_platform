@@ -190,7 +190,7 @@ export class SessionsService {
           user_id: mentorship.mentor_id,
           type: 'MILESTONE_COMPLETED',
           title: '🏆 Mentee Studied a Milestone!',
-          desc: `"${milestone.title}" was marked as studied. Please verify and upload next material.`,
+          desc: `"${milestone.title}" was marked as studied. Please review and verify the milestone.`,
           target_tab: 'milestones'
         }).catch(() => {});
 

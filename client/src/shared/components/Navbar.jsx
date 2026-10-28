@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { GraduationCap, ShieldCheck, User, LogOut, Compass, BookOpen, Bell, LayoutDashboard, Home } from 'lucide-react';
 

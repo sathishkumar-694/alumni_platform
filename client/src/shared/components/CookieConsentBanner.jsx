@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import analytics from '../services/analytics';
 
 export const CookieConsentBanner = ({ onNavigatePrivacy }) => {
