@@ -265,7 +265,7 @@ function MessageBubble({ msg, isOwn }) {
             ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
             : 'var(--bg-subtle)',
           border: isOwn ? 'none' : '1px solid var(--border-card)',
-          color: 'var(--text-main)',
+          color: isOwn ? '#000000' : 'var(--text-main)',
           fontSize: '0.85rem',
           lineHeight: 1.5,
           wordBreak: 'break-word',

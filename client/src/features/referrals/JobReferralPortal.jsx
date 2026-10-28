@@ -373,8 +373,66 @@ export const JobReferralPortal = () => {
               <button type="button" className="btn btn-secondary btn-sm" disabled={submittingApplication} onClick={() => setApplicationJob(null)}><X size={16} /></button>
             </div>
             <label className="form-label" htmlFor="referral-resume">Resume <span style={{ color: 'var(--accent-rose)' }}>*</span></label>
-            <input id="referral-resume" type="file" accept=".pdf,.doc,.docx" required onChange={e => setResumeFiles(current => ({ ...current, [applicationJob.id]: e.target.files?.[0] || null }))} />
-            {resumeFiles[applicationJob.id] && <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '0.4rem 0' }}>{resumeFiles[applicationJob.id].name}</p>}
+            <div
+              style={{
+                border: `2px dashed ${resumeFiles[applicationJob.id] ? 'var(--primary)' : 'var(--border-card)'}`,
+                borderRadius: '10px',
+                padding: '1rem',
+                textAlign: 'center',
+                background: resumeFiles[applicationJob.id] ? 'var(--primary-subtle)' : 'var(--bg-subtle)',
+                transition: 'border-color 0.2s ease, background 0.2s ease',
+                position: 'relative',
+                cursor: 'pointer'
+              }}
+            >
+              <input
+                id="referral-resume"
+                type="file"
+                accept=".pdf,.doc,.docx"
+                onChange={e => setResumeFiles(current => ({ ...current, [applicationJob.id]: e.target.files?.[0] || null }))}
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0,
+                  width: '100%', height: '100%',
+                  opacity: 0,
+                  cursor: 'pointer',
+                  zIndex: 1
+                }}
+              />
+              {resumeFiles[applicationJob.id] ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textAlign: 'left', overflow: 'hidden' }}>
+                    <FileText size={20} color="var(--primary)" style={{ flexShrink: 0 }} />
+                    <div>
+                      <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px' }}>
+                        {resumeFiles[applicationJob.id].name}
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', margin: 0 }}>
+                        {(resumeFiles[applicationJob.id].size / (1024 * 1024)).toFixed(2)} MB • Ready to upload
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setResumeFiles(current => ({ ...current, [applicationJob.id]: null })); }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0.25rem 0.5rem', zIndex: 2, position: 'relative' }}
+                  >
+                    <X size={14} /> Remove
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <Upload size={22} color="var(--text-subtle)" style={{ marginBottom: '0.35rem' }} />
+                  <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)', margin: '0 0 0.2rem' }}>
+                    Click or drag to attach your Resume
+                  </p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', margin: 0 }}>
+                    Accepted formats: .pdf, .doc, .docx
+                  </p>
+                </div>
+              )}
+            </div>
             <label className="form-label" htmlFor="referral-message" style={{ display: 'block', marginTop: '1rem' }}>Message to mentor</label>
             <textarea id="referral-message" value={applicationMessages[applicationJob.id] || ''} onChange={e => setApplicationMessages(current => ({ ...current, [applicationJob.id]: e.target.value }))} placeholder="Introduce yourself and explain why you are interested." rows={4} maxLength={3000} className="form-input" />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
