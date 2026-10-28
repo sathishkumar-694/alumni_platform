@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -14,6 +14,24 @@ export const AuthProvider = ({ children }) => {
   });
   const [token, setToken] = useState(() => localStorage.getItem('campusbridge_token') || null);
   const [loading, setLoading] = useState(false);
+  const heartbeatRef = useRef(null);
+
+  // Send presence heartbeat every 30s while logged in
+  useEffect(() => {
+    if (!token) {
+      clearInterval(heartbeatRef.current);
+      return;
+    }
+    const beat = () => apiClient('/presence/heartbeat', { method: 'POST' }).catch(() => {});
+    beat();
+    heartbeatRef.current = setInterval(beat, 30000);
+    const onVisible = () => { if (!document.hidden) beat(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(heartbeatRef.current);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [token]);
 
   const fetchCurrentUser = async () => {
     if (!token) {

@@ -59,6 +59,10 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const [pendingDomainRequests, setPendingDomainRequests] = useState([]);
   const [allSessions, setAllSessions] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [reassignRequestsList, setReassignRequestsList] = useState([]);
+  const [reassignReviewModal, setReassignReviewModal] = useState(null); // { request, action }
+  const [reassignNewMentor, setReassignNewMentor] = useState('');
+  const [reassignAdminNote, setReassignAdminNote] = useState('');
 
   // Modals & Drawers
   const [previewUser, setPreviewUser] = useState(null);
@@ -115,13 +119,14 @@ export const AdminOperationsCenter = ({ activeSection }) => {
   const fetchOperationsData = async () => {
     setLoading(true);
     try {
-      const [analyticsRes, pendingRes, usersRes, matrixRes, requestsRes, domainsRes] = await Promise.all([
+      const [analyticsRes, pendingRes, usersRes, matrixRes, requestsRes, domainsRes, reassignRes] = await Promise.all([
         apiClient('/analytics/overview').catch(() => ({ data: null })),
         apiClient('/verification/pending').catch(() => ({ data: [] })),
         apiClient('/users').catch(() => ({ data: [] })),
         apiClient('/mentorship/admin/matrix').catch(() => ({ data: [] })),
         apiClient('/mentorship/admin/requests').catch(() => ({ data: [] })),
-        apiClient('/domains').catch(() => ({ data: [] }))
+        apiClient('/domains').catch(() => ({ data: [] })),
+        apiClient('/mentorship/reassign-requests').catch(() => ({ data: [] }))
       ]);
 
       setAnalytics(analyticsRes.data);
@@ -181,6 +186,9 @@ export const AdminOperationsCenter = ({ activeSection }) => {
         }
       });
       setDomains(uniqueDomains);
+
+      // Set reassign requests
+      setReassignRequestsList(reassignRes.data || []);
 
       await fetchDomainRequests();
 
@@ -736,6 +744,50 @@ export const AdminOperationsCenter = ({ activeSection }) => {
                   </table>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* MENTOR CHANGE REQUESTS from Students */}
+          {activeTab === 'requests' && reassignRequestsList.length > 0 && (
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '16px', marginTop: '1.5rem', borderColor: '#fde68a', background: '#fffbeb' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#92400e', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                ⚠️ Student Mentor Change Requests ({reassignRequestsList.filter(r => r.status === 'PENDING').length} pending)
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '1rem' }}>
+                {reassignRequestsList.map(rr => (
+                  <div key={rr.id} style={{ background: '#fff', border: '1px solid #fde68a', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                      <div>
+                        <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>{rr.student_name}</h4>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.15rem 0 0' }}>{rr.student_email}</p>
+                      </div>
+                      <span className={`badge ${rr.status === 'PENDING' ? 'badge-amber' : rr.status === 'APPROVED' ? 'badge-emerald' : 'badge-rose'}`}>{rr.status}</span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.4rem' }}>
+                      Current Mentor: <strong style={{ color: '#0f172a' }}>{rr.mentor_name}</strong>
+                    </p>
+                    <div style={{ background: '#fefce8', padding: '0.65rem 0.85rem', borderRadius: '8px', marginBottom: '0.75rem', border: '1px solid #fef08a' }}>
+                      <p style={{ fontSize: '0.78rem', color: '#78350f', margin: 0, fontStyle: 'italic' }}>Reason: "{rr.reason}"</p>
+                    </div>
+                    {rr.status === 'PENDING' && (
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          onClick={() => { setReassignReviewModal({ request: rr, action: 'APPROVE' }); setReassignNewMentor(''); setReassignAdminNote(''); }}
+                          className="btn btn-primary btn-sm" style={{ flex: 1, fontSize: '0.78rem' }}
+                        >
+                          ✓ Approve & Assign New Mentor
+                        </button>
+                        <button
+                          onClick={() => { setReassignReviewModal({ request: rr, action: 'REJECT' }); setReassignAdminNote(''); }}
+                          className="btn btn-danger btn-sm" style={{ flex: 1, fontSize: '0.78rem' }}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
