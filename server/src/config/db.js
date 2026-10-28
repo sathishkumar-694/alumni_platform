@@ -155,6 +155,11 @@ export const db = {
       );
       const rows = await queryMySQL('SELECT * FROM `domains` WHERE `id` = ?', [id]);
       return rows[0];
+    },
+    updateStatus: async (id, status) => {
+      await queryMySQL('UPDATE `referral_applications` SET `status` = ? WHERE `id` = ?', [status, id]);
+      const rows = await queryMySQL('SELECT * FROM `referral_applications` WHERE `id` = ?', [id]);
+      return rows[0] || null;
     }
   },
 
@@ -419,11 +424,16 @@ export const db = {
     create: async (data) => {
       const id = data.id || `refapp-${Date.now()}`;
       await queryMySQL(
-        'INSERT INTO `referral_applications` (`id`, `job_id`, `student_id`, `status`) VALUES (?, ?, ?, ?)',
-        [id, data.job_id, data.student_id, data.status || 'PENDING']
+        'INSERT INTO `referral_applications` (`id`, `job_id`, `student_id`, `resume_url`, `resume_name`, `status`) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, data.job_id, data.student_id, data.resume_url, data.resume_name, data.status || 'PENDING']
       );
       const rows = await queryMySQL('SELECT * FROM `referral_applications` WHERE `id` = ?', [id]);
       return rows[0];
+    },
+    updateStatus: async (id, status) => {
+      await queryMySQL('UPDATE `referral_applications` SET `status` = ? WHERE `id` = ?', [status, id]);
+      const rows = await queryMySQL('SELECT * FROM `referral_applications` WHERE `id` = ?', [id]);
+      return rows[0] || null;
     }
   },
 

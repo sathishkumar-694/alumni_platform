@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '../../shared/services/api';
+import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
 import {
   Sparkles,
   Upload,
+  Download,
   FileText,
   CheckCircle2,
   AlertTriangle,
@@ -475,13 +476,13 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {item.backup_url && (
                             <a
-                              href={item.backup_url.startsWith('http') ? item.backup_url : `http://localhost:5001${item.backup_url}`}
+                              href={getAssetUrl(item.backup_url)}
                               target="_blank"
                               rel="noreferrer"
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                             >
-                              <Cloud size={13} color="var(--primary)" /> View Backup in Cloudinary
+                              <Download size={13} color="var(--primary)" /> Download Resume File
                             </a>
                           )}
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -827,13 +828,13 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
                       </div>
                       {analysisResult.resume_backup.url && (
                         <a
-                          href={analysisResult.resume_backup.url.startsWith('http') ? analysisResult.resume_backup.url : `http://localhost:5001${analysisResult.resume_backup.url}`}
+                          href={getAssetUrl(analysisResult.resume_backup.url)}
                           target="_blank"
                           rel="noreferrer"
                           className="btn btn-secondary btn-sm"
                           style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
                         >
-                          <ExternalLink size={12} /> View Backed-Up File in Cloudinary
+                          <Download size={12} /> Download Resume File
                         </a>
                       )}
                     </div>

@@ -28,6 +28,11 @@ export class ReferralsRepository {
   async createApplication(data) {
     return await db.referralApplications.create(data);
   }
+
+  async updateApplicationStatus(id, status) {
+    const rows = await db.referralApplications.updateStatus(id, status);
+    return rows;
+  }
 }
 
 export const referralsRepository = new ReferralsRepository();

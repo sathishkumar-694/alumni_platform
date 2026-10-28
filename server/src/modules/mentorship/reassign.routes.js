@@ -8,15 +8,14 @@ import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { authorize } from '../../middleware/role.middleware.js';
 
 const router = Router();
-router.use(verifyJWT);
 
 // Student submits a mentor-change request
-router.post('/mentorship/reassign-request', authorize('STUDENT'), submitReassignRequest);
+router.post('/mentorship/reassign-request', verifyJWT, authorize('STUDENT'), submitReassignRequest);
 
 // Admin views all pending reassign requests
-router.get('/mentorship/reassign-requests', authorize('ADMIN'), getReassignRequests);
+router.get('/mentorship/reassign-requests', verifyJWT, authorize('ADMIN'), getReassignRequests);
 
 // Admin approves or rejects a reassign request
-router.post('/mentorship/reassign-requests/:requestId/review', authorize('ADMIN'), adminReviewReassignRequest);
+router.post('/mentorship/reassign-requests/:requestId/review', verifyJWT, authorize('ADMIN'), adminReviewReassignRequest);
 
 export default router;

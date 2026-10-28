@@ -69,10 +69,12 @@ export class ReferralsService {
     return newJob;
   }
 
-  async applyForReferral(studentUser, jobId) {
+  async applyForReferral(studentUser, jobId, resumeFile) {
     if (studentUser.role !== 'STUDENT') {
       throw new ApiError(403, 'Only verified students can submit referral applications');
     }
+    if (!resumeFile) throw new ApiError(400, 'A resume file is required');
+    const resumeUrl = `/uploads/${resumeFile.filename}`;
 
     const allApps = await referralsRepository.findAllApplications();
     const existing = allApps.find(a => String(a.job_id) === String(jobId) && String(a.student_id) === String(studentUser.id));
@@ -83,6 +85,8 @@ export class ReferralsService {
     const newApp = await referralsRepository.createApplication({
       job_id: jobId,
       student_id: studentUser.id,
+      resume_url: resumeUrl,
+      resume_name: resumeFile.originalname,
       status: 'PENDING'
     });
 
@@ -135,10 +139,21 @@ export class ReferralsService {
         company: job?.company || 'Tech Firm',
         student_name: student?.name || 'Student Applicant',
         student_email: student?.email || 'N/A',
+        resume_url: app.resume_url || null,
+        resume_name: app.resume_name || null,
         status: app.status || 'PENDING',
         applied_at: app.applied_at
       };
     }));
+  }
+
+  async updateApplicationStatus(alumniUser, applicationId, status) {
+    if (!['APPROVED', 'REJECTED'].includes(status)) throw new ApiError(400, 'Status must be APPROVED or REJECTED');
+    const application = (await referralsRepository.findAllApplications()).find(a => String(a.id) === String(applicationId));
+    if (!application) throw new ApiError(404, 'Referral application not found');
+    const job = await referralsRepository.findJobById(application.job_id);
+    if (!job || String(job.alumni_id) !== String(alumniUser.id)) throw new ApiError(403, 'You can only review applications to your own referrals');
+    return await referralsRepository.updateApplicationStatus(applicationId, status);
   }
 }
 

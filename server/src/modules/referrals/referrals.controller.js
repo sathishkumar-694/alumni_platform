@@ -18,7 +18,7 @@ export const createJob = asyncHandler(async (req, res) => {
 
 export const applyForReferral = asyncHandler(async (req, res) => {
   const { jobId } = req.params;
-  const result = await referralsService.applyForReferral(req.user, jobId);
+  const result = await referralsService.applyForReferral(req.user, jobId, req.file);
   return res.status(200).json(
     new ApiResponse(200, result, 'Referral application recorded in database successfully')
   );
@@ -36,4 +36,9 @@ export const getMentorIncomingApplications = asyncHandler(async (req, res) => {
   return res.status(200).json(
     new ApiResponse(200, result, 'Incoming mentor referral applications fetched successfully')
   );
+});
+
+export const reviewReferralApplication = asyncHandler(async (req, res) => {
+  const result = await referralsService.updateApplicationStatus(req.user, req.params.applicationId, req.body.status);
+  return res.status(200).json(new ApiResponse(200, result, 'Referral application status updated'));
 });

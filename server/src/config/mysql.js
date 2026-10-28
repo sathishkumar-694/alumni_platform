@@ -291,6 +291,10 @@ export const ensureDatabaseSchema = async () => {
       // Column may already exist
     }
 
+    // Existing databases may have an older milestone status enum without VERIFIED.
+    // Use VARCHAR so mentor verification cannot be rejected by an outdated enum.
+    await connectionPool.query("ALTER TABLE `milestones` MODIFY COLUMN `status` VARCHAR(30) NOT NULL DEFAULT 'PENDING'");
+
     // 9. Resources Table
     await connectionPool.query(`
       CREATE TABLE IF NOT EXISTS \`resources\` (
@@ -439,10 +443,15 @@ export const ensureDatabaseSchema = async () => {
         \`id\` VARCHAR(100) PRIMARY KEY,
         \`job_id\` VARCHAR(100) NOT NULL,
         \`student_id\` VARCHAR(100) NOT NULL,
+        \`resume_url\` TEXT NULL,
+        \`resume_name\` VARCHAR(255) NULL,
         \`status\` VARCHAR(50) DEFAULT 'PENDING',
         \`applied_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
+
+    try { await connectionPool.query('ALTER TABLE `referral_applications` ADD COLUMN `resume_url` TEXT NULL'); } catch (e) { /* already present */ }
+    try { await connectionPool.query('ALTER TABLE `referral_applications` ADD COLUMN `resume_name` VARCHAR(255) NULL'); } catch (e) { /* already present */ }
 
     // Create Real-Time Notifications Table in MySQL
     await connectionPool.query(`

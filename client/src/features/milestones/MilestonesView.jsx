@@ -31,6 +31,7 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isDone = milestone.status === 'COMPLETED' || milestone.status === 'VERIFIED';
+  const isPending = milestone.status === 'PENDING';
 
   const handleMark = async () => {
     setLoading(true);
@@ -57,6 +58,11 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
             </h4>
           </div>
           <StatusBadge status={milestone.status} />
+          {milestone.due_date && (
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', marginTop: '0.35rem' }}>
+              Due {new Date(milestone.due_date).toLocaleDateString()}
+            </p>
+          )}
           {milestone.description && (
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.5rem', lineHeight: 1.5 }}>
               {expanded ? milestone.description : milestone.description.slice(0, 100) + (milestone.description.length > 100 ? '…' : '')}
@@ -75,7 +81,7 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
             </a>
           )}
         </div>
-        {!isDone && (
+        {isPending && (
           <button
             onClick={handleMark}
             disabled={loading}
@@ -83,7 +89,7 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
             style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '150px', justifyContent: 'center' }}
           >
             {loading ? <Loader2 size={14} className="spin" /> : <CheckCircle2 size={14} />}
-            {loading ? 'Marking…' : "I've Studied This"}
+            {loading ? 'Saving…' : 'Mark completed'}
           </button>
         )}
       </div>
@@ -93,22 +99,6 @@ const StudentMilestoneCard = ({ milestone, onMarkComplete }) => {
 
 /* ─── Single milestone card (mentor view) ─── */
 const MentorMilestoneCard = ({ milestone, onUploadMaterial, onMarkVerified }) => {
-  const [uploading, setUploading] = useState(false);
-  const [uploadDone, setUploadDone] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileRef = useRef(null);
-
-  const handleFile = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    try {
-      await onUploadMaterial(milestone.id, file, milestone.mentorship_id, milestone.title);
-      setUploadDone(true);
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const isCompleted = milestone.status === 'COMPLETED';
   const isVerified = milestone.status === 'VERIFIED';
   const hasNoMaterial = !milestone.resource_url;
@@ -153,41 +143,13 @@ const MentorMilestoneCard = ({ milestone, onUploadMaterial, onMarkVerified }) =>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
           {/* Upload next material — show when student has completed */}
           {isCompleted && !isVerified && (
-            <>
-              <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files[0]); }}
-                onClick={() => fileRef.current?.click()}
-                style={{
-                  border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--border-card)'}`,
-                  borderRadius: '10px', padding: '0.75rem',
-                  textAlign: 'center', cursor: 'pointer',
-                  background: dragOver ? 'rgba(99,102,241,0.06)' : 'var(--bg-subtle)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {uploading
-                  ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} color="var(--primary)" />
-                  : uploadDone
-                  ? <CheckCircle2 size={18} color="var(--accent-emerald)" />
-                  : <Upload size={18} color="var(--text-muted)" />
-                }
-                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
-                  {uploading ? 'Uploading…' : uploadDone ? 'Uploaded!' : 'Drop or click to upload next material'}
-                </p>
-                <input ref={fileRef} type="file" hidden
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.zip,.png,.jpg"
-                  onChange={e => handleFile(e.target.files[0])} />
-              </div>
-              <button
-                onClick={() => onMarkVerified(milestone.id)}
-                className="btn btn-primary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}
-              >
-                <CheckCircle2 size={14} /> Mark Verified
-              </button>
-            </>
+            <button
+              onClick={() => onMarkVerified(milestone.id)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center' }}
+            >
+              <CheckCircle2 size={14} /> Mark Verified
+            </button>
           )}
           {isVerified && (
             <span style={{ fontSize: '0.78rem', color: 'var(--accent-emerald)', fontWeight: 600 }}>

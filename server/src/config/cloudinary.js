@@ -42,6 +42,7 @@ export const uploadResumeBackup = async ({
   const timestamp = Date.now();
   const sanitizedName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.-]/g, '_');
   const publicId = `resume_${userId}_${timestamp}`;
+  let cloudinaryUrl = null;
 
   // 1. Attempt Cloudinary Cloud Upload
   if (config.cloudinary.cloudName && config.cloudinary.apiKey && config.cloudinary.apiSecret) {
@@ -58,12 +59,7 @@ export const uploadResumeBackup = async ({
           resource_type: 'auto'
         });
 
-        return {
-          url: result.secure_url,
-          provider: 'Cloudinary Cloud Storage',
-          public_id: result.public_id,
-          backed_up_at: new Date().toISOString()
-        };
+        cloudinaryUrl = result.secure_url;
       }
     } catch (cloudErr) {
       console.warn(`[Cloudinary Notice] Cloudinary upload (${cloudErr.message}). Backing up to local storage directory...`);
@@ -90,7 +86,8 @@ export const uploadResumeBackup = async ({
     const localUrl = `/uploads/resumes/${localFileName}`;
     return {
       url: localUrl,
-      provider: 'Local Disk Backup (/uploads/resumes)',
+      provider: cloudinaryUrl ? 'Local download with Cloudinary backup' : 'Local Disk Backup (/uploads/resumes)',
+      cloudinary_url: cloudinaryUrl,
       local_path: localFilePath,
       backed_up_at: new Date().toISOString()
     };

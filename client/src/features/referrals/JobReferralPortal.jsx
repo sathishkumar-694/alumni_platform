@@ -27,9 +27,11 @@ export const JobReferralPortal = () => {
 
   const [jobList, setJobList] = useState([]);
   const [appliedJobIds, setAppliedJobIds] = useState([]);
+  const [resumeFiles, setResumeFiles] = useState({});
   const [loading, setLoading] = useState(true);
   const [incomingApplications, setIncomingApplications] = useState([]);
   const [applicantsJob, setApplicantsJob] = useState(null);
+  const [updatingApplicationId, setUpdatingApplicationId] = useState(null);
 
   const [showPostJobModal, setShowPostJobModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -70,8 +72,15 @@ export const JobReferralPortal = () => {
 
   const handleApplyReferral = async (job) => {
     if (appliedJobIds.includes(job.id)) return;
+    const resume = resumeFiles[job.id];
+    if (!resume) {
+      showNotification('Upload your resume before applying.', 'error');
+      return;
+    }
     try {
-      await apiClient(`/referrals/${job.id}/apply`, { method: 'POST' });
+      const formData = new FormData();
+      formData.append('resume', resume);
+      await apiClient(`/referrals/${job.id}/apply`, { method: 'POST', body: formData });
       setAppliedJobIds(prev => [...prev, job.id]);
       showNotification(`Internal Referral Application submitted to ${job.postedBy} at ${job.company}!`, 'success');
       fetchJobData();
@@ -110,6 +119,22 @@ export const JobReferralPortal = () => {
       showNotification(err.message, 'error');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleReviewApplicant = async (application, status) => {
+    setUpdatingApplicationId(application.id);
+    try {
+      await apiClient(`/referrals/mentor/applications/${application.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+      setIncomingApplications(current => current.map(item => item.id === application.id ? { ...item, status } : item));
+      showNotification(`Application ${status.toLowerCase()}.`, 'success');
+    } catch (err) {
+      showNotification(err.message, 'error');
+    } finally {
+      setUpdatingApplicationId(null);
     }
   };
 
@@ -308,14 +333,13 @@ export const JobReferralPortal = () => {
 
                 <div style={{ paddingTop: '0.85rem', borderTop: '1px solid var(--border-card)' }}>
                   {user?.role === 'STUDENT' ? (
-                    <button
-                      onClick={() => handleApplyReferral(job)}
-                      disabled={hasApplied}
-                      className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`}
-                      style={{ width: '100%' }}
-                    >
-                      {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Request Internal Referral</>}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {!hasApplied && <input type="file" accept=".pdf,.doc,.docx" onChange={e => setResumeFiles(current => ({ ...current, [job.id]: e.target.files?.[0] || null }))} />}
+                      {!hasApplied && resumeFiles[job.id] && <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{resumeFiles[job.id].name}</span>}
+                      <button onClick={() => handleApplyReferral(job)} disabled={hasApplied} className={`btn btn-sm ${hasApplied ? 'btn-secondary' : 'btn-primary'}`} style={{ width: '100%' }}>
+                        {hasApplied ? <><CheckCircle2 size={14} color="#059669" /> Referral Requested</> : <><Send size={14} /> Apply with Resume</>}
+                      </button>
+                    </div>
                   ) : user?.role === 'ALUMNI' && job.is_owner ? (
                     <button onClick={() => setApplicantsJob(job)} className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
                       <Users size={14} /> View applicants ({incomingApplications.filter(a => String(a.job_id) === String(job.id)).length})
@@ -344,7 +368,14 @@ export const JobReferralPortal = () => {
               <div key={applicant.id} style={{ padding: '0.85rem', border: '1px solid var(--border-card)', borderRadius: '10px', marginTop: '0.5rem' }}>
                 <strong style={{ color: 'var(--text-main)' }}>{applicant.student_name}</strong>
                 <p style={{ color: 'var(--text-muted)', margin: '0.25rem 0' }}>{applicant.student_email}</p>
+                {applicant.resume_url && <a href={getAssetUrl(applicant.resume_url)} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', margin: '0.25rem 0' }}><Download size={14} /> View {applicant.resume_name || 'Resume'}</a>}
                 <span className="badge badge-cyan">{applicant.status}</span>
+                {applicant.status === 'PENDING' && (
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem' }}>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'APPROVED')}>Approve</button>
+                    <button type="button" className="btn btn-secondary btn-sm" disabled={updatingApplicationId === applicant.id} onClick={() => handleReviewApplicant(applicant, 'REJECTED')}>Reject</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -197,18 +197,11 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', flex: 1 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(m.id, m.status)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', marginTop: '0.15rem' }}
-                    title={m.status === 'COMPLETED' ? 'Mark incomplete' : 'Mark completed'}
-                  >
-                    {m.status === 'COMPLETED' ? (
-                      <CheckCircle2 size={20} color="var(--accent-emerald)" />
-                    ) : (
-                      <Clock size={20} color="var(--text-subtle)" />
-                    )}
-                  </button>
+                  {m.status === 'COMPLETED' || m.status === 'VERIFIED' ? (
+                    <CheckCircle2 size={20} color="var(--accent-emerald)" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+                  ) : (
+                    <Clock size={20} color="var(--text-subtle)" style={{ marginTop: '0.15rem', flexShrink: 0 }} />
+                  )}
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: '0.925rem', fontWeight: 600, color: m.status === 'COMPLETED' ? 'var(--text-subtle)' : '#0f172a', textDecoration: m.status === 'COMPLETED' ? 'line-through' : 'none', margin: 0 }}>
                       {m.title}
@@ -217,6 +210,17 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0' }}>
                         {m.description}
                       </p>
+                    )}
+
+                    {!isMentor && m.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(m.id, m.status)}
+                        className="btn btn-primary btn-sm"
+                        style={{ marginTop: '0.55rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <CheckCircle2 size={14} /> Mark completed
+                      </button>
                     )}
 
                     {/* Attached Resource Material Link */}
