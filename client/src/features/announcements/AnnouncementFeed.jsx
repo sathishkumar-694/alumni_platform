@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import { useAuth } from '../../shared/context/AuthContext';
 import { useNotification } from '../../shared/context/NotificationContext';
