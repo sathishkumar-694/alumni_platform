@@ -325,7 +325,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #f1f5f9 !important;
 }
 
-[data-theme="dark"] div[style*="background: linear-gradient"],
+[data-theme="dark"] div[style*="background: linear-gradient"]:not(.chat-message-own),
 [data-theme="dark"] div[style*="background: #eff6ff"],
 [data-theme="dark"] div[style*="background: #f5f3ff"],
 [data-theme="dark"] div[style*="background: #f3e8ff"] {

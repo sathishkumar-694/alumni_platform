@@ -265,12 +265,12 @@ function MessageBubble({ msg, isOwn }) {
             ? 'linear-gradient(135deg, var(--primary), var(--accent-purple))'
             : 'var(--bg-subtle)',
           border: isOwn ? 'none' : '1px solid var(--border-card)',
-          color: isOwn ? '#000000' : 'var(--text-main)',
+          color: isOwn ? '#ffffff' : 'var(--text-main)',
           fontSize: '0.85rem',
           lineHeight: 1.5,
           wordBreak: 'break-word',
           boxShadow: isOwn ? '0 2px 8px rgba(99,102,241,0.25)' : '0 1px 4px rgba(0,0,0,0.06)'
-        }}>
+        }} className={isOwn ? 'chat-message-own' : undefined}>
           {msg.content}
         </div>
         <div style={{
