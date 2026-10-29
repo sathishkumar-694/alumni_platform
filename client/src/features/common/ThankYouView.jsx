@@ -2,7 +2,6 @@
 export const ThankYouView = ({
   title = "Submission Received Successfully!",
   subtitle = "Thank you for connecting through CampusBridge. Your request has been recorded.",
-  actionType = "default",
   onNavigateDashboard,
   onNavigateHome,
   onNavigateExplore

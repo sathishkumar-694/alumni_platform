@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useNotification } from '../../shared/context/useNotification';
 import { X, Calendar, Clock, Sparkles, RefreshCw } from 'lucide-react';
 
 export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess }) => {
@@ -13,21 +13,15 @@ export const SessionSchedulerModal = ({ mentorshipId, isOpen, onClose, onSuccess
   
   // Platform selection: 'jitsi' | 'gmeet' | 'zoom'
   const [platformType, setPlatformType] = useState('jitsi');
-  const [meetingLink, setMeetingLink] = useState('');
+  const [meetingLink, setMeetingLink] = useState(() => createJitsiRoomUrl('', mentorshipId));
   const [submitting, setSubmitting] = useState(false);
 
   // Generate unique built-in Jitsi room link
-  const createJitsiRoomUrl = (customTopic) => {
+  function createJitsiRoomUrl(customTopic = topic, targetMentorshipId = mentorshipId) {
     const slug = Math.random().toString(36).substring(2, 7);
-    const safeTopic = (customTopic || topic || 'Mentorship').replace(/[^a-zA-Z0-9]/g, '-');
-    return `https://meet.jit.si/CampusBridge-${safeTopic}-${mentorshipId || 'session'}-${slug}`;
-  };
-
-  useEffect(() => {
-    if (isOpen && !meetingLink) {
-      setMeetingLink(createJitsiRoomUrl());
-    }
-  }, [isOpen]);
+    const safeTopic = (customTopic || 'Mentorship').replace(/[^a-zA-Z0-9]/g, '-');
+    return `https://meet.jit.si/CampusBridge-${safeTopic}-${targetMentorshipId || 'session'}-${slug}`;
+  }
 
   const handleGenerateJitsiLink = () => {
     const freshUrl = createJitsiRoomUrl();

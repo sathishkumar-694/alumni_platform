@@ -32,6 +32,18 @@ export const completeSessionByStudent = asyncHandler(async (req, res) => {
   );
 });
 
+export const getMeetingWorkspace = asyncHandler(async (req, res) => {
+  const { mentorshipId, sessionId } = req.params;
+  const result = await sessionsService.getMeetingWorkspace(req.user, mentorshipId, sessionId);
+  return res.status(200).json(new ApiResponse(200, result, 'Meeting workspace fetched'));
+});
+
+export const updateMeetingWorkspace = asyncHandler(async (req, res) => {
+  const { mentorshipId, sessionId } = req.params;
+  const result = await sessionsService.updateMeetingWorkspace(req.user, mentorshipId, sessionId, req.body);
+  return res.status(200).json(new ApiResponse(200, result, 'Meeting workspace updated'));
+});
+
 export const createMilestone = asyncHandler(async (req, res) => {
   const { mentorshipId, title, description, dueDate, resourceUrl, resource_url } = req.body;
   const result = await sessionsService.createMilestone(

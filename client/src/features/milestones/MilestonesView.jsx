@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../../shared/context/AuthContext';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../../shared/context/useAuth';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
 import {
   CheckCircle2, BookOpen, AlertCircle, Clock, Trophy, ChevronUp, RefreshCw, FileText, X, Loader2
@@ -272,24 +272,22 @@ export function MilestonesView() {
   };
 
   /* Load active mentorships for the current user */
-  const loadMentorships = async () => {
+  const loadMentorships = useCallback(async () => {
     setLoadingMentorships(true);
     try {
       const res = await apiClient('/mentorship/my-mentorships');
       const list = (res.data || []).filter(m => m.status === 'ACTIVE' || m.status === 'COMPLETED');
       setMentorships(list);
-      if (list.length > 0 && !selectedMentorship) {
-        setSelectedMentorship(list[0]);
-      }
+      if (list.length > 0) setSelectedMentorship(current => current || list[0]);
     } catch (e) {
       console.error('Failed to load mentorships', e.message);
     } finally {
       setLoadingMentorships(false);
     }
-  };
+  }, []);
 
   /* Load milestones for the selected mentorship */
-  const loadMilestones = async (mentorshipId) => {
+  const loadMilestones = useCallback(async (mentorshipId) => {
     if (!mentorshipId) return;
     setLoadingMilestones(true);
     try {
@@ -301,10 +299,18 @@ export function MilestonesView() {
     } finally {
       setLoadingMilestones(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadMentorships(); }, [user]);
-  useEffect(() => { if (selectedMentorship) loadMilestones(selectedMentorship.id); }, [selectedMentorship]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadMentorships(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMentorships, user]);
+
+  useEffect(() => {
+    if (!selectedMentorship) return undefined;
+    const timer = window.setTimeout(() => { void loadMilestones(selectedMentorship.id); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadMilestones, selectedMentorship]);
 
   /* Student: mark a milestone as completed */
   const handleMarkComplete = async (milestoneId) => {

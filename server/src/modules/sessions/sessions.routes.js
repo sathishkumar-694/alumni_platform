@@ -6,7 +6,9 @@ import {
   completeSessionByStudent,
   createMilestone,
   getMilestonesByMentorship,
-  updateMilestoneStatus
+  updateMilestoneStatus,
+  getMeetingWorkspace,
+  updateMeetingWorkspace
 } from './sessions.controller.js';
 import { verifyJWT } from '../../middleware/auth.middleware.js';
 import { validateBody } from '../../middleware/validation.middleware.js';
@@ -34,6 +36,10 @@ router.get('/mentorship/:mentorshipId', getSessionsByMentorship);
 // Session Update & Slot Finalization Routes
 router.patch('/sessions/:sessionId/notes', updateSessionNotes);
 router.patch('/sessions/:sessionId/complete', authorize('STUDENT'), completeSessionByStudent);
+
+// Authenticated, mentorship-participant-only collaborative meeting workspace.
+router.get('/collaboration/:mentorshipId/:sessionId', getMeetingWorkspace);
+router.patch('/collaboration/:mentorshipId/:sessionId', updateMeetingWorkspace);
 router.patch('/sessions/:sessionId', updateSessionNotes);
 router.patch('/:sessionId/notes', updateSessionNotes);
 router.patch('/:sessionId', updateSessionNotes);

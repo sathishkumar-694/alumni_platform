@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import { MilestoneTracker } from '../sessions/MilestoneTracker';
 import { SessionTracker } from '../sessions/SessionTracker';
 import { SessionSchedulerModal } from '../sessions/SessionSchedulerModal';
@@ -19,14 +19,13 @@ import {
   Briefcase
 } from 'lucide-react';
 
-export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
+export const MentorDashboard = ({ activeSection = 'dashboard', onLaunchMeeting }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
 
   const [activeMentorships, setActiveMentorships] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [incomingReferralApps, setIncomingReferralApps] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showProfileCard, setShowProfileCard] = useState(true);
 
   // Scheduler modal state
@@ -50,8 +49,6 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
       setIncomingReferralApps(referralAppsRes.data || []);
     } catch (err) {
       console.error('Failed to load mentor dashboard data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -60,7 +57,8 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
 
   useEffect(() => {
     if (user?.role === 'ALUMNI' || user?.role === 'ADMIN') {
-      fetchData();
+      const timer = window.setTimeout(() => { void fetchData(); }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [user]);
 
@@ -96,7 +94,6 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
   if (user?.role !== 'ALUMNI' && user?.role !== 'ADMIN') return null;
 
   const activeList = activeMentorships.filter(m => m.status === 'ACTIVE');
-  const completedList = activeMentorships.filter(m => m.status === 'COMPLETED');
 
   const maxCap = user?.profile?.max_capacity || 5;
   const currCap = user?.profile?.current_capacity || activeList.length;
@@ -266,7 +263,7 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
                       "{r.message}"
                     </p>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
-                      Requested on {new Date(r.requested_at || Date.now()).toLocaleDateString()}
+                      Requested on {r.requested_at ? new Date(r.requested_at).toLocaleDateString() : 'Date unavailable'}
                     </p>
                   </div>
 
@@ -356,7 +353,7 @@ export const MentorDashboard = ({ activeSection = 'dashboard' }) => {
                     </button>
                   </div>
 
-                  <SessionTracker mentorshipId={am.id} isMentor={true} />
+                  <SessionTracker mentorshipId={am.id} isMentor={true} onLaunchMeeting={onLaunchMeeting} />
                 </div>
               ))}
             </div>

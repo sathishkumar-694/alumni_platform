@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import { useBatchOnlineStatus } from '../../shared/hooks/usePresence';
 import { MilestoneTracker } from '../sessions/MilestoneTracker';
 import { SessionTracker } from '../sessions/SessionTracker';
@@ -18,17 +18,6 @@ import {
   AlertTriangle,
   X
 } from 'lucide-react';
-
-/* ── Online Status Dot ── */
-function OnlineDot({ online, loading }) {
-  if (loading) return null;
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 600, color: online ? '#10b981' : '#94a3b8' }}>
-      <span style={{ width: 8, height: 8, borderRadius: '50%', background: online ? '#10b981' : '#94a3b8', display: 'inline-block', boxShadow: online ? '0 0 0 2px #10b98130' : 'none' }} />
-      {online ? 'Online now' : 'Offline'}
-    </span>
-  );
-}
 
 /* ── Mentor Reassign Request Modal ── */
 function ReassignRequestModal({ mentorship, onClose, onSuccess }) {
@@ -109,9 +98,8 @@ function ReassignRequestModal({ mentorship, onClose, onSuccess }) {
   );
 }
 
-export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
+export const StudentDashboard = ({ activeSection = 'dashboard', onLaunchMeeting }) => {
   const { user } = useAuth();
-  const { showNotification } = useNotification();
 
   const [activeMentorships, setActiveMentorships] = useState([]);
   const [myRequests, setMyRequests] = useState([]);
@@ -148,7 +136,8 @@ export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
 
   useEffect(() => {
     if (user?.role === 'STUDENT') {
-      fetchData();
+      const timer = window.setTimeout(() => { void fetchData(); }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [user]);
 
@@ -402,7 +391,7 @@ export const StudentDashboard = ({ activeSection = 'dashboard' }) => {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: activeSection === 'sessions' ? '1fr' : '1fr 1fr', gap: '1.5rem' }}>
-                      <SessionTracker mentorshipId={m.id} userRole="STUDENT" />
+                      <SessionTracker mentorshipId={m.id} userRole="STUDENT" onLaunchMeeting={onLaunchMeeting} />
                       {activeSection !== 'sessions' && (
                         <MilestoneTracker mentorshipId={m.id} userRole="STUDENT" />
                       )}

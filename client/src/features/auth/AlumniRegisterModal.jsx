@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import {
   X, ShieldCheck, Upload, Eye, EyeOff,
   CheckCircle, Circle, AlertCircle, Linkedin, BookOpen

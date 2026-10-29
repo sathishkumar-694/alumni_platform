@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useNotification } from '../../shared/context/useNotification';
 import { X, Sparkles, FileText, CheckCircle2, AlertTriangle, UserPlus, Award, Zap, Upload, Loader2 } from 'lucide-react';
 
 export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) => {
-  const { user } = useAuth();
   const { showNotification } = useNotification();
 
   const [resumeText, setResumeText] = useState('');
@@ -59,7 +57,15 @@ export const ResumeAnalyzerModal = ({ isOpen, onClose, onRequestMentorship }) =>
             const cleanDocxText = matches.join(' ').replace(/\s+/g, ' ').trim();
             setResumeText(`[Attached Word Document: ${file.name}]\n${cleanDocxText.slice(0, 4000)}`);
           } else {
-            const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, ' ').replace(/\s+/g, ' ').trim();
+            const cleanText = text
+              .split('')
+              .filter((character) => {
+                const code = character.charCodeAt(0);
+                return !((code <= 8) || code === 11 || code === 12 || (code >= 14 && code <= 31) || (code >= 127 && code <= 159));
+              })
+              .join('')
+              .replace(/\s+/g, ' ')
+              .trim();
             if (cleanText.length > 10) {
               setResumeText(`[Attached Document: ${file.name}]\n${cleanText.slice(0, 4000)}`);
             }

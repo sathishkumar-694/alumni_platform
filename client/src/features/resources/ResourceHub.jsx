@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import {
   BookOpen,
   ExternalLink,
@@ -29,7 +29,7 @@ export const ResourceHub = () => {
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchResources = async () => {
+  const fetchResources = useCallback(async () => {
     try {
       const res = await apiClient('/resources');
       setResources(res.data || []);
@@ -38,9 +38,9 @@ export const ResourceHub = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchDomains = async () => {
+  const fetchDomains = useCallback(async () => {
     try {
       const res = await apiClient('/domains');
       setDomains(res.data || []);
@@ -50,12 +50,15 @@ export const ResourceHub = () => {
     } catch (err) {
       console.warn('Failed to load domains:', err.message);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchResources();
-    fetchDomains();
-  }, []);
+    const timer = window.setTimeout(() => {
+      void fetchResources();
+      void fetchDomains();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchDomains, fetchResources]);
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];

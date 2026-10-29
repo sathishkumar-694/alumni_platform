@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { GraduationCap, ShieldCheck, User, LogOut, Compass, BookOpen, Bell, LayoutDashboard, Home } from 'lucide-react';
 
 export const Navbar = ({ activeTab, setActiveTab, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni }) => {

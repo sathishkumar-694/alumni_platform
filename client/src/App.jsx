@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AuthProvider, useAuth } from './shared/context/AuthContext';
+import { AuthProvider } from './shared/context/AuthContext';
+import { useAuth } from './shared/context/useAuth';
 import { NotificationProvider } from './shared/context/NotificationContext';
 
 import { Sidebar } from './shared/components/Sidebar';
@@ -33,6 +34,7 @@ import { ThankYouView } from './features/common/ThankYouView';
 import { NotFoundView } from './features/common/NotFoundView';
 import { ChatView } from './features/chat/ChatView';
 import { MilestonesView } from './features/milestones/MilestonesView';
+import { VirtualMeetingModal } from './features/sessions/VirtualMeetingModal';
 
 import useDocumentMeta from './shared/hooks/useDocumentMeta';
 import analytics from './shared/services/analytics';
@@ -72,6 +74,8 @@ const MainContent = () => {
   const [isRegisterStudentOpen, setIsRegisterStudentOpen] = useState(false);
   const [isRegisterAlumniOpen, setIsRegisterAlumniOpen] = useState(false);
   const [selectedMentorForRequest, setSelectedMentorForRequest] = useState(null);
+  const [activeMeetingSession, setActiveMeetingSession] = useState(null);
+  const [isMeetingMinimized, setIsMeetingMinimized] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Auto-open login modal when session expires (token rejected by server)
@@ -115,25 +119,33 @@ const MainContent = () => {
     }
   };
 
+  const handleLaunchMeeting = (session) => {
+    setActiveMeetingSession(session);
+    setIsMeetingMinimized(false);
+  };
+
   useEffect(() => {
-    if (!user) {
-      // If visitor is logged out and on a protected tab (like dashboard, profile, requests), force 'home'
-      const publicTabs = ['home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404', 'reset-password'];
-      if (!publicTabs.includes(activeTab)) {
-        setActiveTabState('home');
-        if (typeof window !== 'undefined') window.location.hash = 'home';
+    const timer = window.setTimeout(() => {
+      const currentTab = getRouteFromHash(window.location.hash) || 'home';
+      if (!user) {
+        const publicTabs = ['home', 'explore', 'announcements', 'resources', 'privacy', 'terms', 'thank-you', '404', 'reset-password'];
+        if (!publicTabs.includes(currentTab)) {
+          setActiveTabState('home');
+          window.location.hash = 'home';
+        }
+      } else {
+        if (currentTab === 'reset-password') return;
+        const saved = localStorage.getItem('campusbridge_active_tab');
+        if (saved && saved !== 'home') {
+          setActiveTabState(saved);
+          window.location.hash = saved;
+        } else if (currentTab === 'home') {
+          setActiveTabState('dashboard');
+          window.location.hash = 'dashboard';
+        }
       }
-    } else {
-      if (activeTab === 'reset-password') return;
-      const saved = localStorage.getItem('campusbridge_active_tab');
-      if (saved && saved !== 'home') {
-        setActiveTabState(saved);
-        if (typeof window !== 'undefined') window.location.hash = saved;
-      } else if (activeTab === 'home') {
-        setActiveTabState('dashboard');
-        if (typeof window !== 'undefined') window.location.hash = 'dashboard';
-      }
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   const isPublicLanding = !user && activeTab === 'home';
@@ -143,7 +155,6 @@ const MainContent = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-subtle)' }}>
       {/* Persistent Global Header */}
       <TopHeader
-        isPublicLanding={isPublicLanding}
         onNavigate={handleSetActiveTab}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenRegisterStudent={() => setIsRegisterStudentOpen(true)}
@@ -264,9 +275,9 @@ const MainContent = () => {
             {/* User Specific Views (Dashboard, Active Mentorships, Requests, Sessions) */}
             {user && (activeTab === 'dashboard' || activeTab === 'active_mentorships' || activeTab === 'requests' || activeTab === 'sessions') && (
               user.role === 'STUDENT' ? (
-                <StudentDashboard activeSection={activeTab} />
+                <StudentDashboard activeSection={activeTab} onLaunchMeeting={handleLaunchMeeting} />
               ) : (
-                <MentorDashboard activeSection={activeTab} />
+                <MentorDashboard activeSection={activeTab} onLaunchMeeting={handleLaunchMeeting} />
               )
             )}
 
@@ -427,6 +438,30 @@ const MainContent = () => {
           onClose={() => setSelectedMentorForRequest(null)}
           onSuccess={() => handleSetActiveTab('requests')}
         />
+      )}
+
+      {activeMeetingSession && (
+        <VirtualMeetingModal
+          key={activeMeetingSession.id || activeMeetingSession.mentorship_id}
+          session={activeMeetingSession}
+          isOpen
+          minimized={isMeetingMinimized}
+          onMinimize={() => setIsMeetingMinimized(true)}
+          onClose={() => {
+            setActiveMeetingSession(null);
+            setIsMeetingMinimized(false);
+          }}
+        />
+      )}
+      {activeMeetingSession && isMeetingMinimized && (
+        <div style={{ position: 'fixed', right: '1rem', bottom: '1rem', zIndex: 100000, display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '12px', background: '#111827', color: '#f8fafc', border: '1px solid #334155', boxShadow: '0 10px 30px rgba(0,0,0,0.35)' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Meeting in progress: {activeMeetingSession.topic || 'Mentorship call'}</span>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsMeetingMinimized(false)}>Return to meeting</button>
+          <button type="button" className="btn btn-danger btn-sm" onClick={() => {
+            setActiveMeetingSession(null);
+            setIsMeetingMinimized(false);
+          }}>End call</button>
+        </div>
       )}
     </div>
   );

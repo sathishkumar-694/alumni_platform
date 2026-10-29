@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import { RequestDomainModal } from './RequestDomainModal';
 import {
   Code,
@@ -73,14 +73,17 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship, search
   });
 
   useEffect(() => {
-    const ints = user?.profile?.interests || user?.interests;
-    if (Array.isArray(ints)) {
-      setStudentInterests(ints);
-    }
-    const exps = user?.profile?.expertise || user?.expertise;
-    if (Array.isArray(exps)) {
-      setAlumniExpertise(exps);
-    }
+    const timer = window.setTimeout(() => {
+      const ints = user?.profile?.interests || user?.interests;
+      if (Array.isArray(ints)) {
+        setStudentInterests(ints);
+      }
+      const exps = user?.profile?.expertise || user?.expertise;
+      if (Array.isArray(exps)) {
+        setAlumniExpertise(exps);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [user]);
 
   // Confirmation modal state for removing domain ({ domain, roleType: 'STUDENT' | 'ALUMNI' })
@@ -98,7 +101,8 @@ export const DomainExplorer = ({ onOpenCreateDomain, onRequestMentorship, search
   };
 
   useEffect(() => {
-    fetchDomains();
+    const timer = window.setTimeout(() => { void fetchDomains(); }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   // 1. Student Track Interest Handlers

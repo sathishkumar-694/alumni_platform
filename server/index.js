@@ -27,6 +27,7 @@ import { ensureChatSchema } from './src/modules/chat/chat.service.js';
 import presenceRoutes, { ensureOnlineStatusSchema } from './src/modules/presence/presence.routes.js';
 import reassignRoutes from './src/modules/mentorship/reassign.routes.js';
 import { ensureReassignSchema } from './src/modules/mentorship/reassign.controller.js';
+import { ensureMeetingWorkspaceSchema } from './src/modules/sessions/sessions.service.js';
 
 const app = express();
 
@@ -177,6 +178,7 @@ const startServer = async (portToTry) => {
   await ensureChatSchema();
   await ensureOnlineStatusSchema();
   await ensureReassignSchema();
+  await ensureMeetingWorkspaceSchema();
   const server = app.listen(portToTry, () => {
     console.log(`CampusBridge Backend Engine listening on http://localhost:${portToTry}`);
     console.log(`Swagger Interactive API Docs available at http://localhost:${portToTry}/docs`);

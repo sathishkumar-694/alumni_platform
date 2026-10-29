@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useNotification } from '../../shared/context/useNotification';
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 
 /**

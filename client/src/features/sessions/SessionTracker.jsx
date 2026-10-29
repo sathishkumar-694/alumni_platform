@@ -1,17 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useNotification } from '../../shared/context/NotificationContext';
-import { VirtualMeetingModal } from './VirtualMeetingModal';
+import { useNotification } from '../../shared/context/useNotification';
 import { Calendar, Video, Clock, CheckCircle2 } from 'lucide-react';
 
-export const SessionTracker = ({ mentorshipId, isMentor }) => {
+export const SessionTracker = ({ mentorshipId, isMentor, onLaunchMeeting }) => {
   const { showNotification } = useNotification();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeVirtualSession, setActiveVirtualSession] = useState(null);
   const [completingSessionId, setCompletingSessionId] = useState(null);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const res = await apiClient(`/sessions/sessions/mentorship/${mentorshipId}`);
       setSessions(res.data || []);
@@ -20,11 +18,13 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mentorshipId]);
 
   useEffect(() => {
-    if (mentorshipId) fetchSessions();
-  }, [mentorshipId]);
+    if (!mentorshipId) return undefined;
+    const timer = window.setTimeout(() => { void fetchSessions(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchSessions, mentorshipId]);
 
   const handleConfirmSlot = async (sessionId, selectedSlot) => {
     try {
@@ -65,7 +65,7 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
         </h5>
 
         <button
-          onClick={() => setActiveVirtualSession({
+          onClick={() => onLaunchMeeting?.({
             id: `inst-${mentorshipId}`,
             topic: '1-on-1 Instant Mentorship & Code Session',
             mentorship_id: mentorshipId
@@ -150,7 +150,7 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
                     )}
                     {!isCompleted && (
                       <button
-                        onClick={() => setActiveVirtualSession(s)}
+                        onClick={() => onLaunchMeeting?.(s)}
                         className="btn btn-primary btn-sm"
                         style={{ fontSize: '0.75rem' }}
                       >
@@ -166,14 +166,6 @@ export const SessionTracker = ({ mentorshipId, isMentor }) => {
       </div>
       )}
 
-      {/* Embedded 1-on-1 Virtual Video Conference Modal */}
-      {activeVirtualSession && (
-        <VirtualMeetingModal
-          session={activeVirtualSession}
-          isOpen={Boolean(activeVirtualSession)}
-          onClose={() => setActiveVirtualSession(null)}
-        />
-      )}
     </div>
   );
 };

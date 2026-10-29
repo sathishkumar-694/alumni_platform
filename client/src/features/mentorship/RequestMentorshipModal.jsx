@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useNotification } from '../../shared/context/useNotification';
 import { X, Send, Lock } from 'lucide-react';
 
 const DEFAULT_DOMAINS = [

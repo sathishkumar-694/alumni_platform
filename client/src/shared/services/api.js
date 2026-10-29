@@ -61,7 +61,7 @@ export const getActiveApiUrl = async (forceRefresh = false) => {
             return saved;
           }
         }
-      } catch (e) {
+      } catch {
         // Saved port offline or stale
       }
     }
@@ -82,7 +82,7 @@ export const getActiveApiUrl = async (forceRefresh = false) => {
             return url;
           }
         }
-      } catch (e) {
+      } catch {
         // Continue to next port
       }
     }
@@ -146,7 +146,7 @@ export const apiClient = async (endpoint, options = {}) => {
       ...options,
       headers
     });
-  } catch (netErr) {
+  } catch {
     // Port failed/changed: clear cache, force refresh discovery, and retry request
     cachedActiveApiBaseUrl = null;
     if (typeof localStorage !== 'undefined') {

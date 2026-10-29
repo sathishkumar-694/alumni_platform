@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import {
   Sparkles,
   Upload,
@@ -66,7 +66,8 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
 
   useEffect(() => {
     if (user) {
-      fetchHistory();
+      const timer = window.setTimeout(() => { void fetchHistory(); }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [user]);
 
@@ -102,7 +103,7 @@ export const AiResumeAnalyzerView = ({ onRequestMentorship }) => {
             setResumeText(content);
           };
           textReader.readAsText(file);
-        } catch (err) {
+        } catch {
           // Ignore
         }
       } else {

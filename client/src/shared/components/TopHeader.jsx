@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../context/useAuth';
 import { apiClient } from '../services/api';
-import { Bell, Sun, Moon, ChevronDown, LogOut, User } from 'lucide-react';
+import { Bell, Sun, Moon, ChevronDown, LogOut, User, Search } from 'lucide-react';
 
-export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni, searchQuery = '', onSearchChange, activeTab }) => {
+export const TopHeader = ({ onNavigate, onOpenLogin, onOpenRegisterStudent, onOpenRegisterAlumni, searchQuery = '', onSearchChange, activeTab }) => {
   const { user, logout } = useAuth();
   const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -12,8 +12,8 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
   const [notifications, setNotifications] = useState([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
 
-  const fetchNotifications = async () => {
-    if (!user) return;
+  const fetchNotifications = useCallback(async () => {
+    if (!user?.id) return;
     setLoadingNotifs(true);
     try {
       const res = await apiClient('/notifications');
@@ -23,20 +23,20 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     } finally {
       setLoadingNotifs(false);
     }
-  };
+  }, [user?.id]);
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 15000);
-      const handleNotificationRefresh = () => fetchNotifications();
-      window.addEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
-      return () => {
-        clearInterval(interval);
-        window.removeEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
-      };
-    }
-  }, [user?.id]);
+    if (!user?.id) return undefined;
+    const initialFetch = window.setTimeout(() => { void fetchNotifications(); }, 0);
+    const interval = window.setInterval(() => { void fetchNotifications(); }, 15000);
+    const handleNotificationRefresh = () => { void fetchNotifications(); };
+    window.addEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
+    return () => {
+      window.clearTimeout(initialFetch);
+      window.clearInterval(interval);
+      window.removeEventListener('campusbridge:notification_refresh', handleNotificationRefresh);
+    };
+  }, [fetchNotifications, user?.id]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -113,12 +113,6 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleInputChange = (e) => {
-    if (onSearchChange) {
-      onSearchChange(e.target.value);
-    }
-  };
-
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter') {
       const searchableTabs = ['explore', 'recommended_mentors', 'resources', 'referrals', 'announcements'];
@@ -157,7 +151,19 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
       </div>
 
       {/* Center Spacer */}
-      <div style={{ flex: 1 }} />
+      <div style={{ flex: 1, maxWidth: '520px', margin: '0 1.5rem', position: 'relative' }}>
+        <Search size={16} color="var(--text-subtle)" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
+        <input
+          id="global-header-search"
+          type="search"
+          aria-label="Search CampusBridge"
+          placeholder="Search mentors, resources, domains..."
+          value={searchQuery}
+          onChange={(e) => onSearchChange?.(e.target.value)}
+          onKeyDown={handleSearchSubmit}
+          style={{ width: '100%', height: '38px', padding: '0 0.75rem 0 2.25rem', border: '1px solid var(--border-card)', borderRadius: '999px', background: 'var(--bg-subtle)', color: 'var(--text-main)', outline: 'none' }}
+        />
+      </div>
 
       {/* Header Actions (Right) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
@@ -279,7 +285,9 @@ export const TopHeader = ({ isPublicLanding, onNavigate, onOpenLogin, onOpenRegi
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {notifications.length > 0 ? (
+                    {loadingNotifs ? (
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>Loading notifications...</p>
+                    ) : notifications.length > 0 ? (
                       notifications.map((notif) => (
                         <div
                           key={notif.id}

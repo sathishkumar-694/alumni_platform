@@ -1,4 +1,4 @@
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { Clock, ShieldAlert } from 'lucide-react';
 
 export const VerificationBanner = () => {

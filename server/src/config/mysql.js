@@ -52,7 +52,9 @@ const inMemoryStore = {
   job_referrals: [],
   referral_applications: [],
   notifications: [],
-  resume_analyses: []
+  resume_analyses: [],
+  meeting_workspaces: [],
+  chat_messages: []
 };
 
 let isUseInMemoryFallback = false;
@@ -78,7 +80,9 @@ const runInMemoryQuery = (sql, params = []) => {
 
     // Simple WHERE matching
     if (lowerSql.includes('where')) {
-      if (lowerSql.includes('lower(`email`) = lower(?)') || lowerSql.includes('email = ?')) {
+      if (tableName === 'meeting_workspaces' && lowerSql.includes('session_id` = ?')) {
+        rows = rows.filter(r => r.session_id === params[0] && r.mentorship_id === params[1]);
+      } else if (lowerSql.includes('lower(`email`) = lower(?)') || lowerSql.includes('email = ?')) {
         const targetEmail = String(params[0]).toLowerCase();
         rows = rows.filter(r => r.email && r.email.toLowerCase() === targetEmail);
       } else if (lowerSql.includes('`id` = ?') || lowerSql.includes('id = ?')) {
@@ -98,6 +102,24 @@ const runInMemoryQuery = (sql, params = []) => {
   // Handle INSERT INTO table
   if (lowerSql.startsWith('insert into')) {
     const tableName = cleanSql.match(/insert\s+into\s+[`]?(\w+)[`]?/i)?.[1];
+    if (tableName === 'meeting_workspaces') {
+      const [sessionId, mentorshipId, codeContent, strokesJson] = params;
+      const existing = inMemoryStore.meeting_workspaces.find(row => row.session_id === sessionId && row.mentorship_id === mentorshipId);
+      if (existing) {
+        if (codeContent !== null) existing.code_content = codeContent;
+        if (strokesJson !== null) existing.strokes_json = strokesJson;
+        existing.updated_at = new Date();
+      } else {
+        inMemoryStore.meeting_workspaces.push({
+          session_id: sessionId,
+          mentorship_id: mentorshipId,
+          code_content: codeContent,
+          strokes_json: strokesJson,
+          updated_at: new Date()
+        });
+      }
+      return [{ affectedRows: 1 }];
+    }
     if (tableName && inMemoryStore[tableName]) {
       const matchCols = cleanSql.match(/\(([^)]+)\)\s+values/i);
       if (matchCols) {
@@ -392,7 +414,7 @@ export const ensureDatabaseSchema = async () => {
       );
     }
 
-    // Auto-seed default Admin user if missing or reset password hash
+    // Auto-seed the default Admin user only when it is missing.
     try {
       const adminPassHash = bcrypt.hashSync('admin', 10);
       const [existingAdmin] = await connectionPool.query("SELECT COUNT(*) as count FROM `users` WHERE `email` = 'admin@bitsathy.ac.in'");
@@ -400,11 +422,6 @@ export const ensureDatabaseSchema = async () => {
         await connectionPool.query(
           "INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `role`, `verification_status`) VALUES (?, ?, ?, ?, ?, ?)",
           ['admin-1', 'Campus Admin', 'admin@bitsathy.ac.in', adminPassHash, 'ADMIN', 'VERIFIED']
-        );
-      } else {
-        await connectionPool.query(
-          "UPDATE `users` SET `password_hash` = ?, `role` = 'ADMIN', `verification_status` = 'VERIFIED' WHERE `email` = 'admin@bitsathy.ac.in'",
-          [adminPassHash]
         );
       }
     } catch (_) {}

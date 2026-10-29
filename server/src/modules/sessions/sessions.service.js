@@ -1,9 +1,109 @@
 import { sessionsRepository } from './sessions.repository.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { queryMySQL } from '../../config/mysql.js';
 import { uploadToCloud } from '../../config/cloudinary.js';
 import { notificationsService } from '../notifications/notifications.service.js';
 
+export const ensureMeetingWorkspaceSchema = async () => {
+  await queryMySQL(`
+    CREATE TABLE IF NOT EXISTS \`meeting_workspaces\` (
+      \`session_id\` VARCHAR(100) NOT NULL,
+      \`mentorship_id\` VARCHAR(100) NOT NULL,
+      \`code_content\` MEDIUMTEXT NULL,
+      \`strokes_json\` MEDIUMTEXT NULL,
+      \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`mentorship_id\`, \`session_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+};
+
 export class SessionsService {
+  async _assertMeetingParticipant(user, mentorshipId, sessionId) {
+    if (!sessionId || sessionId.length > 100) {
+      throw new ApiError(400, 'A valid meeting session ID is required');
+    }
+
+    const mentorship = await sessionsRepository.findActiveMentorshipById(mentorshipId);
+    if (!mentorship) {
+      throw new ApiError(404, 'Mentorship relationship not found');
+    }
+    if (user.role !== 'ADMIN' && String(user.id) !== String(mentorship.student_id) && String(user.id) !== String(mentorship.mentor_id)) {
+      throw new ApiError(403, 'You are not a participant in this meeting');
+    }
+  }
+
+  async getMeetingWorkspace(user, mentorshipId, sessionId) {
+    await this._assertMeetingParticipant(user, mentorshipId, sessionId);
+    const rows = await queryMySQL(
+      'SELECT code_content, strokes_json, updated_at FROM `meeting_workspaces` WHERE `session_id` = ? AND `mentorship_id` = ? LIMIT 1',
+      [sessionId, mentorshipId]
+    );
+    const workspace = rows[0];
+    return {
+      code: workspace?.code_content || '',
+      strokes: workspace?.strokes_json ? JSON.parse(workspace.strokes_json) : [],
+      updatedAt: workspace?.updated_at || null
+    };
+  }
+
+  async updateMeetingWorkspace(user, mentorshipId, sessionId, payload) {
+    await this._assertMeetingParticipant(user, mentorshipId, sessionId);
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      throw new ApiError(400, 'Meeting workspace update must be an object');
+    }
+
+    const hasCode = Object.prototype.hasOwnProperty.call(payload, 'code');
+    const hasStrokes = Object.prototype.hasOwnProperty.call(payload, 'strokes');
+    if (!hasCode && !hasStrokes) {
+      throw new ApiError(400, 'Provide code or whiteboard strokes to update');
+    }
+
+    if (hasCode && (typeof payload.code !== 'string' || payload.code.length > 50000)) {
+      throw new ApiError(400, 'Code must be text no longer than 50,000 characters');
+    }
+
+    let strokesJson = null;
+    if (hasStrokes) {
+      if (!Array.isArray(payload.strokes) || payload.strokes.length > 300) {
+        throw new ApiError(400, 'Whiteboard must contain no more than 300 strokes');
+      }
+      const validStrokes = payload.strokes.map((stroke) => {
+        if (!stroke || typeof stroke.color !== 'string' || !/^#[0-9a-f]{6}$/i.test(stroke.color) || !Array.isArray(stroke.points) || stroke.points.length > 500) {
+          throw new ApiError(400, 'Whiteboard stroke is invalid');
+        }
+        const points = stroke.points.map((point) => {
+          if (!Number.isFinite(point?.x) || !Number.isFinite(point?.y) || point.x < 0 || point.x > 1 || point.y < 0 || point.y > 1) {
+            throw new ApiError(400, 'Whiteboard point is invalid');
+          }
+          return { x: point.x, y: point.y };
+        });
+        return { color: stroke.color, points };
+      });
+      strokesJson = JSON.stringify(validStrokes);
+      if (validStrokes.reduce((total, stroke) => total + stroke.points.length, 0) > 10000 || strokesJson.length > 1000000) {
+        throw new ApiError(413, 'Whiteboard update exceeds the allowed size');
+      }
+    }
+
+    await queryMySQL(
+      `INSERT INTO \`meeting_workspaces\` (\`session_id\`, \`mentorship_id\`, \`code_content\`, \`strokes_json\`)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         \`code_content\` = IF(\`mentorship_id\` = VALUES(\`mentorship_id\`), COALESCE(VALUES(\`code_content\`), \`code_content\`), \`code_content\`),
+         \`strokes_json\` = IF(\`mentorship_id\` = VALUES(\`mentorship_id\`), COALESCE(VALUES(\`strokes_json\`), \`strokes_json\`), \`strokes_json\`),
+         \`updated_at\` = IF(\`mentorship_id\` = VALUES(\`mentorship_id\`), CURRENT_TIMESTAMP, \`updated_at\`)`,
+      [sessionId, mentorshipId, hasCode ? payload.code : null, strokesJson]
+    );
+    const savedWorkspace = await queryMySQL(
+      'SELECT session_id FROM `meeting_workspaces` WHERE `session_id` = ? AND `mentorship_id` = ? LIMIT 1',
+      [sessionId, mentorshipId]
+    );
+    if (savedWorkspace.length === 0) {
+      throw new ApiError(409, 'Meeting session ID is already associated with another mentorship');
+    }
+    return await this.getMeetingWorkspace(user, mentorshipId, sessionId);
+  }
+
   async createSession(user, payload) {
     const mentorshipId = payload.mentorshipId || payload.mentorship_id;
     const scheduledAt = payload.scheduledAt || payload.scheduled_at;

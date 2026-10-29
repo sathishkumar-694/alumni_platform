@@ -1,163 +1,213 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   X,
   Video,
-  VideoOff,
-  Mic,
-  MicOff,
-  Share2,
   Maximize2,
   ShieldCheck,
   Code,
   PenTool,
   MessageSquare,
   Play,
-  RotateCcw
+  RotateCcw,
+  Minus
 } from 'lucide-react';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
+import { apiClient } from '../../shared/services/api';
 
-export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
+export const VirtualMeetingModal = ({ session, isOpen, minimized = false, onMinimize, onClose }) => {
   const { user } = useAuth();
   const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('video'); // 'video' | 'whiteboard' | 'code' | 'chat'
-
-  // WebRTC Native HTML5 Media Stream States
-  const [cameraActive, setCameraActive] = useState(true);
-  const [micActive, setMicActive] = useState(true);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const localVideoRef = useRef(null);
-  const mediaStreamRef = useRef(null);
+  const mentorshipId = session?.mentorship_id || session?.mentorshipId;
+  const sessionId = String(session?.id || mentorshipId || 'live-room');
 
   // In-Call Live Chat State
-  const [messages, setMessages] = useState([
-    { sender: 'System', text: '🔒 1-on-1 Encrypted Virtual Session Started.', time: 'Now' },
-    { sender: session?.mentor_name || 'Alumni Mentor', text: `Welcome to our mentorship call! Let's discuss ${session?.topic || 'career guidance'}.`, time: 'Now' }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const fetchMessages = useCallback(async () => {
+    if (!mentorshipId) return;
+    try {
+      const res = await apiClient(`/chat/conversations/${encodeURIComponent(mentorshipId)}/messages`);
+      setMessages(res.data?.messages || []);
+    } catch (err) {
+      console.warn('Failed to load in-call chat:', err.message);
+    }
+  }, [mentorshipId]);
 
   // Interactive Code Sandbox State
   const [codeSnippet, setCodeSnippet] = useState(
     `// 1-on-1 Technical Interview & Live Coding Sandbox\n// Topic: ${session?.topic || 'Data Structures & System Architecture'}\n\nfunction solveSystemProblem(inputData) {\n  console.log("Analyzing input:", inputData);\n  const result = inputData.map(x => x * 2);\n  return result;\n}\n\n// Run code below:\nconsole.log("Output:", solveSystemProblem([10, 20, 30, 40]));`
   );
   const [codeConsoleOutput, setCodeConsoleOutput] = useState('');
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
+  const [strokes, setStrokes] = useState([]);
 
   // Collaborative Whiteboard Canvas Refs & State
   const canvasRef = useRef(null);
+  const codeEditorRef = useRef(null);
+  const currentStrokeRef = useRef(null);
+  const isDrawingRef = useRef(false);
+  const strokesRef = useRef([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawColor, setDrawColor] = useState('#0284c7');
 
-  // Start Native HTML5 WebRTC Camera & Mic Stream on Mount
+  const updateStrokes = (nextStrokes) => {
+    strokesRef.current = nextStrokes;
+    setStrokes(nextStrokes);
+  };
+
+  const saveWorkspace = useCallback(async (updates) => {
+    if (!mentorshipId) return;
+    await apiClient(`/sessions/collaboration/${encodeURIComponent(mentorshipId)}/${encodeURIComponent(sessionId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  }, [mentorshipId, sessionId]);
+
+  const fetchWorkspace = useCallback(async () => {
+    if (!mentorshipId) return;
+    try {
+      const res = await apiClient(`/sessions/collaboration/${encodeURIComponent(mentorshipId)}/${encodeURIComponent(sessionId)}`);
+      const workspace = res.data || {};
+      if (Array.isArray(workspace.strokes) && !isDrawingRef.current) {
+        strokesRef.current = workspace.strokes;
+        setStrokes(workspace.strokes);
+      }
+      if (workspace.updatedAt && typeof workspace.code === 'string' && document.activeElement !== codeEditorRef.current) {
+        setCodeSnippet(workspace.code);
+      }
+      setWorkspaceLoaded(true);
+    } catch (err) {
+      console.warn('Failed to sync meeting workspace:', err.message);
+    }
+  }, [mentorshipId, sessionId]);
+
   useEffect(() => {
-    if (!isOpen) return;
-
-    let isMounted = true;
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true
-        });
-        if (isMounted) {
-          mediaStreamRef.current = stream;
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-          }
-        }
-      } catch (err) {
-        console.warn('Camera/Mic permission not granted or device unavailable:', err.message);
-      }
-    };
-
-    startCamera();
-
+    if (!isOpen || !mentorshipId) return undefined;
+    const initialFetch = window.setTimeout(() => { void fetchMessages(); }, 0);
+    const interval = window.setInterval(() => { void fetchMessages(); }, 2000);
     return () => {
-      isMounted = false;
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(t => t.stop());
-      }
+      window.clearTimeout(initialFetch);
+      window.clearInterval(interval);
     };
-  }, [isOpen]);
+  }, [fetchMessages, isOpen, mentorshipId]);
 
-  // Toggle Camera Track
-  const toggleCamera = () => {
-    if (mediaStreamRef.current) {
-      const videoTrack = mediaStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !cameraActive;
-      }
-    }
-    setCameraActive(!cameraActive);
-  };
+  useEffect(() => {
+    if (!isOpen || !mentorshipId) return undefined;
+    const initialFetch = window.setTimeout(() => { void fetchWorkspace(); }, 0);
+    const interval = window.setInterval(() => { void fetchWorkspace(); }, 2000);
+    return () => {
+      window.clearTimeout(initialFetch);
+      window.clearInterval(interval);
+    };
+  }, [fetchWorkspace, isOpen, mentorshipId]);
 
-  // Toggle Mic Track
-  const toggleMic = () => {
-    if (mediaStreamRef.current) {
-      const audioTrack = mediaStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !micActive;
-      }
-    }
-    setMicActive(!micActive);
-  };
+  useEffect(() => {
+    if (!isOpen || !workspaceLoaded || !mentorshipId) return undefined;
+    const timer = window.setTimeout(() => {
+      void saveWorkspace({ code: codeSnippet }).catch((err) => {
+        console.error('Failed to save shared code:', err.message);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [codeSnippet, isOpen, mentorshipId, saveWorkspace, workspaceLoaded]);
 
-  // Toggle Native HTML5 Screen Sharing
-  const toggleScreenShare = async () => {
-    if (!screenSharing) {
-      try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = screenStream;
-        }
-        setScreenSharing(true);
-        screenStream.getVideoTracks()[0].onended = () => {
-          setScreenSharing(false);
-          if (localVideoRef.current && mediaStreamRef.current) {
-            localVideoRef.current.srcObject = mediaStreamRef.current;
-          }
-        };
-      } catch (err) {
-        showNotification('Screen sharing cancelled', 'info');
-      }
-    } else {
-      setScreenSharing(false);
-      if (localVideoRef.current && mediaStreamRef.current) {
-        localVideoRef.current.srcObject = mediaStreamRef.current;
-      }
-    }
-  };
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    strokes.forEach((stroke) => {
+      const points = stroke.points || [];
+      if (points.length === 0) return;
+      context.beginPath();
+      context.strokeStyle = stroke.color;
+      context.lineWidth = 3;
+      context.lineCap = 'round';
+      context.moveTo(points[0].x * canvas.width, points[0].y * canvas.height);
+      points.slice(1).forEach((point) => context.lineTo(point.x * canvas.width, point.y * canvas.height));
+      context.stroke();
+    });
+  }, [strokes]);
 
   // Handle Code Execution in Sandbox
-  const handleRunCode = () => {
+  const handleRunCode = async () => {
+    let worker;
+    let workerUrl;
     try {
-      const logs = [];
-      const customConsole = {
-        log: (...args) => logs.push(args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')),
-        error: (...args) => logs.push('[ERROR] ' + args.join(' '))
-      };
-
-      const runFn = new Function('console', codeSnippet);
-      runFn(customConsole);
-      setCodeConsoleOutput(logs.join('\n') || 'Code executed successfully with zero output errors!');
-      showNotification('Code executed cleanly!', 'success');
+      const source = `
+        self.fetch = () => Promise.reject(new Error('Network access is disabled in this sandbox.'));
+        self.XMLHttpRequest = undefined;
+        self.WebSocket = undefined;
+        self.EventSource = undefined;
+        self.importScripts = undefined;
+        self.Worker = undefined;
+        self.BroadcastChannel = undefined;
+        self.onmessage = ({ data }) => {
+          const output = [];
+          const format = (value) => {
+            if (typeof value === 'string') return value;
+            try { return JSON.stringify(value); } catch { return String(value); }
+          };
+          const sandboxConsole = {
+            log: (...values) => output.push(values.map(format).join(' ')),
+            error: (...values) => output.push('[ERROR] ' + values.map(format).join(' '))
+          };
+          try {
+            new Function('console', data.code)(sandboxConsole);
+            self.postMessage({ output: output.join(String.fromCharCode(10)) || 'Code executed successfully with zero output errors!' });
+          } catch (error) {
+            self.postMessage({ error: error.message });
+          }
+        };
+      `;
+      workerUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      worker = new Worker(workerUrl);
+      setCodeConsoleOutput('Running code...');
+      const result = await new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error('Execution timed out after 3 seconds.')), 3000);
+        worker.onmessage = (event) => {
+          window.clearTimeout(timeout);
+          resolve(event.data);
+        };
+        worker.onerror = (event) => {
+          window.clearTimeout(timeout);
+          reject(new Error(event.message || 'Code execution failed.'));
+        };
+        worker.postMessage({ code: codeSnippet });
+      });
+      if (result.error) {
+        setCodeConsoleOutput(`Runtime Error: ${result.error}`);
+        showNotification('Code execution failed.', 'error');
+      } else {
+        setCodeConsoleOutput(result.output);
+        showNotification('Code executed cleanly!', 'success');
+      }
     } catch (err) {
       setCodeConsoleOutput(`Runtime Error: ${err.message}`);
-      showNotification('Syntax error in code execution', 'error');
+      showNotification('Code execution failed.', 'error');
+    } finally {
+      worker?.terminate();
+      if (workerUrl) URL.revokeObjectURL(workerUrl);
     }
   };
 
   // Send In-Call Live Chat Message
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    setMessages(prev => [
-      ...prev,
-      { sender: 'You', text: chatInput, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
-    ]);
-    setChatInput('');
+    try {
+      await apiClient(`/chat/conversations/${encodeURIComponent(mentorshipId)}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content: chatInput.trim() })
+      });
+      setChatInput('');
+      await fetchMessages();
+    } catch (err) {
+      showNotification(err.message || 'Could not send in-call message.', 'error');
+    }
   };
 
   // Whiteboard Canvas Drawing Logic
@@ -166,11 +216,18 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
+    const point = {
+      x: (e.clientX - rect.left) / rect.width,
+      y: (e.clientY - rect.top) / rect.height
+    };
+    currentStrokeRef.current = { color: drawColor, points: [point] };
+    isDrawingRef.current = true;
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo(point.x * canvas.width, point.y * canvas.height);
     ctx.strokeStyle = drawColor;
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
+    canvas.setPointerCapture(e.pointerId);
     setIsDrawing(true);
   };
 
@@ -180,19 +237,35 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const point = {
+      x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+    };
+    currentStrokeRef.current?.points.push(point);
+    ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
     ctx.stroke();
   };
 
   const stopDrawing = () => {
+    isDrawingRef.current = false;
     setIsDrawing(false);
+    const completedStroke = currentStrokeRef.current;
+    currentStrokeRef.current = null;
+    if (!completedStroke || completedStroke.points.length === 0) return;
+    const nextStrokes = [...strokesRef.current, completedStroke].slice(-300);
+    updateStrokes(nextStrokes);
+    void saveWorkspace({ strokes: nextStrokes }).catch((err) => {
+      console.error('Failed to save whiteboard changes:', err.message);
+      showNotification('Could not save your whiteboard changes.', 'error');
+    });
   };
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    updateStrokes([]);
+    void saveWorkspace({ strokes: [] }).catch((err) => {
+      console.error('Failed to clear shared whiteboard:', err.message);
+      showNotification('Could not clear the shared whiteboard.', 'error');
+    });
   };
 
   if (!isOpen || !session) return null;
@@ -212,7 +285,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         background: 'rgba(5, 8, 15, 0.95)',
         backdropFilter: 'blur(12px)',
         zIndex: 99999,
-        display: 'flex',
+        display: minimized ? 'none' : 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '0.5rem',
@@ -311,6 +384,15 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
           {/* Leave Call Action Button */}
           <button
             type="button"
+            onClick={onMinimize}
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.8rem', padding: '0.45rem 1rem' }}
+            title="Minimize meeting and continue using CampusBridge"
+          >
+            <Minus size={15} /> Minimize
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             className="btn btn-danger btn-sm"
             style={{ fontSize: '0.8rem', padding: '0.45rem 1rem' }}
@@ -323,13 +405,13 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', background: '#030712' }}>
           
           {/* TAB 1: DUAL HD REAL-TIME 2-WAY WEBRTC VIDEO CALL VIEW */}
-          {activeTab === 'video' && (() => {
+          {(() => {
             const cleanRoomName = `CampusBridge-Session-${session.id || session.mentorship_id || 'live-room'}`.replace(/[^a-zA-Z0-9-_]/g, '-');
             const participantName = user?.name || session.student_name || session.mentor_name || 'Participant';
             const roomUrl = `https://meet.jit.si/${cleanRoomName}#userInfo.displayName="${encodeURIComponent(participantName)}"`;
 
             return (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0.75rem', background: '#030712' }}>
+              <div style={{ flex: 1, display: activeTab === 'video' ? 'flex' : 'none', flexDirection: 'column', padding: '0.75rem', background: '#030712' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', background: '#111827', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #1f2937' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontSize: '0.8rem', fontWeight: 600 }}>
                     <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />
@@ -360,8 +442,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
           })()}
 
           {/* TAB 2: INTERACTIVE ARCHITECTURE WHITEBOARD */}
-          {activeTab === 'whiteboard' && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem', background: '#0f172a' }}>
+          <div style={{ flex: 1, display: activeTab === 'whiteboard' ? 'flex' : 'none', flexDirection: 'column', padding: '1rem', background: '#0f172a' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', background: '#1e293b', padding: '0.5rem 1rem', borderRadius: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <span style={{ fontSize: '0.825rem', color: '#94a3b8', fontWeight: 600 }}>Select Ink Color:</span>
@@ -390,19 +471,17 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
                   ref={canvasRef}
                   width={1200}
                   height={650}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                  onPointerCancel={stopDrawing}
                   style={{ width: '100%', height: '100%', cursor: 'crosshair', display: 'block' }}
                 />
               </div>
             </div>
-          )}
 
           {/* TAB 3: CODE INTERVIEW SANDBOX */}
-          {activeTab === 'code' && (
-            <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem', padding: '1rem', background: '#0f172a' }}>
+          <div style={{ flex: 1, display: activeTab === 'code' ? 'grid' : 'none', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem', padding: '1rem', background: '#0f172a' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 700 }}>JavaScript Code Editor</span>
@@ -411,6 +490,8 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
                   </button>
                 </div>
                 <textarea
+                ref={codeEditorRef}
+                maxLength={50000}
                   value={codeSnippet}
                   onChange={(e) => setCodeSnippet(e.target.value)}
                   style={{
@@ -436,21 +517,25 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
                 </div>
               </div>
             </div>
-          )}
 
           {/* TAB 4: IN-CALL LIVE CHAT */}
-          {activeTab === 'chat' && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1rem', background: '#0f172a', maxWidth: '800px', margin: 'auto', width: '100%' }}>
+          <div style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none', flexDirection: 'column', padding: '1rem', background: '#0f172a', maxWidth: '800px', margin: 'auto', width: '100%' }}>
               <div style={{ flex: 1, background: '#020617', borderRadius: '12px', border: '1px solid #1e293b', padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
-                {messages.map((m, idx) => (
-                  <div key={idx} style={{ background: m.sender === 'You' ? '#0284c7' : '#1e293b', padding: '0.65rem 0.85rem', borderRadius: '8px', alignSelf: m.sender === 'You' ? 'flex-end' : 'flex-start', maxWidth: '75%' }}>
+                {messages.length === 0 && (
+                  <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>No messages yet. Send a message to start the in-call chat.</p>
+                )}
+                {messages.map((m) => {
+                  const isOwnMessage = String(m.sender_id) === String(user?.id);
+                  return (
+                  <div key={m.id} style={{ background: isOwnMessage ? '#0284c7' : '#1e293b', padding: '0.65rem 0.85rem', borderRadius: '8px', alignSelf: isOwnMessage ? 'flex-end' : 'flex-start', maxWidth: '75%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginBottom: '0.2rem' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: m.sender === 'You' ? '#ffffff' : '#38bdf8' }}>{m.sender}</span>
-                      <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)' }}>{m.time}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isOwnMessage ? '#ffffff' : '#38bdf8' }}>{m.sender_name || 'Participant'}</span>
+                      <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)' }}>{m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                     </div>
-                    <p style={{ fontSize: '0.85rem', color: '#ffffff', margin: 0 }}>{m.text}</p>
+                    <p style={{ fontSize: '0.85rem', color: '#ffffff', margin: 0 }}>{m.content}</p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
@@ -465,7 +550,6 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
                 <button type="submit" className="btn btn-primary btn-sm">Send</button>
               </form>
             </div>
-          )}
         </div>
 
         {/* Bottom WebRTC Control Bar */}
@@ -483,36 +567,7 @@ export const VirtualMeetingModal = ({ session, isOpen, onClose }) => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.8rem' }}>
             <ShieldCheck size={16} color="#34d399" />
-            <span>Native Browser WebRTC Call Active</span>
-          </div>
-
-          {/* Core Call Action Controls */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <button
-              onClick={toggleMic}
-              className={`btn btn-sm ${micActive ? 'btn-secondary' : 'btn-danger'}`}
-              style={{ padding: '0.6rem 1.1rem', borderRadius: '9999px', fontSize: '0.825rem' }}
-              title={micActive ? 'Mute Microphone' : 'Unmute Microphone'}
-            >
-              {micActive ? <Mic size={16} /> : <MicOff size={16} />} {micActive ? 'Mic On' : 'Muted'}
-            </button>
-
-            <button
-              onClick={toggleCamera}
-              className={`btn btn-sm ${cameraActive ? 'btn-secondary' : 'btn-danger'}`}
-              style={{ padding: '0.6rem 1.1rem', borderRadius: '9999px', fontSize: '0.825rem' }}
-              title={cameraActive ? 'Turn Off Camera' : 'Turn On Camera'}
-            >
-              {cameraActive ? <Video size={16} /> : <VideoOff size={16} />} {cameraActive ? 'Camera On' : 'Cam Off'}
-            </button>
-
-            <button
-              onClick={toggleScreenShare}
-              className={`btn btn-sm ${screenSharing ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '0.6rem 1.1rem', borderRadius: '9999px', fontSize: '0.825rem' }}
-            >
-              <Share2 size={16} /> {screenSharing ? 'Stop Sharing' : 'Share Screen'}
-            </button>
+            <span>Call controls are available in the Video tab</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

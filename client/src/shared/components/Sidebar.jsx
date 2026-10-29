@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import {
   LayoutDashboard,
   Compass,
@@ -47,7 +47,6 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   };
 
   const isStudent = user?.role === 'STUDENT';
-  const isAlumni = user?.role === 'ALUMNI';
   const isAdmin = user?.role === 'ADMIN';
 
   // Reusable Nav Item Renderer

@@ -1,4 +1,4 @@
-import { useAuth } from '../../shared/context/AuthContext';
+import { useAuth } from '../../shared/context/useAuth';
 import { getAssetUrl } from '../../shared/services/api';
 import { User, ShieldCheck, FileText, Mail, CheckCircle2 } from 'lucide-react';
 

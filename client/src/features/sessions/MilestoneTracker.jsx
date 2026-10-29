@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { apiClient, getAssetUrl } from '../../shared/services/api';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useNotification } from '../../shared/context/useNotification';
 import { CheckCircle2, Clock, Plus, Target, FileText } from 'lucide-react';
 
 export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
@@ -13,7 +13,7 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchMilestones = async () => {
+  const fetchMilestones = useCallback(async () => {
     try {
       const res = await apiClient(`/sessions/milestones/mentorship/${mentorshipId}`);
       setMilestones(res.data || []);
@@ -22,11 +22,13 @@ export const MilestoneTracker = ({ mentorshipId, isMentor }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mentorshipId]);
 
   useEffect(() => {
-    if (mentorshipId) fetchMilestones();
-  }, [mentorshipId]);
+    if (!mentorshipId) return undefined;
+    const timer = window.setTimeout(() => { void fetchMilestones(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchMilestones, mentorshipId]);
 
   const handleAddMilestone = async (e) => {
     e.preventDefault();

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
+import { useNotification } from '../../shared/context/useNotification';
 import { X, Sparkles, Upload } from 'lucide-react';
 
 export const StudentRegisterModal = ({ isOpen, onClose }) => {

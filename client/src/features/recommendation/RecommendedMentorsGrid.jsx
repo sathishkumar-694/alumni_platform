@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../shared/services/api';
-import { useAuth } from '../../shared/context/AuthContext';
-import { useNotification } from '../../shared/context/NotificationContext';
+import { useAuth } from '../../shared/context/useAuth';
 import { Sparkles, Briefcase, Send, Clock } from 'lucide-react';
 
 export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false, searchQuery = '' }) => {
   const { user } = useAuth();
-  const { showNotification } = useNotification();
 
   const [mentors, setMentors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,9 +22,8 @@ export const RecommendedMentorsGrid = ({ onRequestMentorship, hideHeader = false
 
   useEffect(() => {
     if (user?.verification_status === 'VERIFIED') {
-      fetchRecommendations();
-    } else {
-      setLoading(false);
+      const timer = window.setTimeout(() => { void fetchRecommendations(); }, 0);
+      return () => window.clearTimeout(timer);
     }
   }, [user]);
 
